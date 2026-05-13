@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🗺 旅行地图</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body { font-family: 'Google Sans', -apple-system, sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; background: #f8f9fa; }
+
+  /* ── 顶部栏 ── */
+  #topbar {
+    height: 52px; background: #fff; border-bottom: 1px solid #e0e0e0;
+    display: flex; align-items: center; padding: 0 16px; gap: 12px;
+    z-index: 100; flex-shrink: 0;
+  }
+  #topbar h1 { font-size: 16px; font-weight: 600; color: #202124; flex: 1; }
+  #topbar button {
+    padding: 6px 14px; border-radius: 8px; border: 1px solid #dadce0;
+    background: #fff; cursor: pointer; font-size: 13px; font-weight: 500;
+    color: #3c4043; transition: background .15s;
+  }
+  #topbar button:hover { background: #f1f3f4; }
+  #reload-btn { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+  #reload-btn:hover { background: #1557b0; }
+
+  /* ── 主体布局 ── */
+  #main { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── 侧边栏 ── */
+  #sidebar {
+    width: 280px; background: #fff; border-right: 1px solid #e0e0e0;
+    overflow-y: auto; flex-shrink: 0; display: flex; flex-direction: column;
+  }
+  #sidebar-header {
+    padding: 12px 16px 8px; font-size: 12px; font-weight: 600;
+    color: #5f6368; letter-spacing: .06em; text-transform: uppercase;
+    border-bottom: 1px solid #f1f3f4; flex-shrink: 0;
+  }
+  .day-group { border-bottom: 1px solid #f1f3f4; }
+  .day-label {
+    padding: 8px 16px; font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; gap: 8px; cursor: default;
+  }
+  .day-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .place-item {
+    padding: 8px 16px 8px 34px; font-size: 13px; cursor: pointer;
+    display: flex; align-items: flex-start; gap: 8px;
+    transition: background .12s; line-height: 1.4;
+  }
+  .place-item:hover { background: #f8f9fa; }
+  .place-item.active { background: #e8f0fe; }
+  .place-num {
+    width: 18px; height: 18px; border-radius: 50%; font-size: 10px;
+    font-weight: 600; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 1px;
+  }
+  .place-name { flex: 1; color: #202124; }
+  .place-cat { font-size: 11px; color: #80868b; margin-top: 2px; }
+
+  #sidebar-empty {
+    padding: 32px 16px; text-align: center; color: #80868b; font-size: 13px; line-height: 1.6;
+  }
+
+  /* ── 地图 ── */
+  #map { flex: 1; }
+
+  /* ── 设置浮层 ── */
+  #settings-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.4);
+    z-index: 9999; display: flex; align-items: center; justify-content: center;
+  }
+  #settings-overlay.hidden { display: none; }
+  #settings-box {
+    background: #fff; border-radius: 16px; padding: 24px 28px;
+    width: 380px; max-width: 95vw;
+    box-shadow: 0 8px 40px rgba(0,0,0,.18);
+  }
+  #settings-box h2 { font-size: 17px; font-weight: 600; margin-bottom: 18px; color: #202124; }
+  .setting-field { margin-bottom: 14px; }
+  .setting-field label { display: block; font-size: 12px; color: #5f6368; margin-bottom: 4px; font-weight: 500; }
+  .setting-field input {
+    width: 100%; padding: 8px 12px; border: 1px solid #dadce0;
+    border-radius: 8px; font-size: 13px; color: #202124; outline: none;
+  }
+  .setting-field input:focus { border-color: #1a73e8; }
+  .setting-field .hint { font-size: 11px; color: #80868b; margin-top: 3px; }
+  #settings-save {
+    width: 100%; padding: 10px; background: #1a73e8; color: #fff;
+    border: none; border-radius: 8px; font-size: 14px; font-weight: 500;
+    cursor: pointer; margin-top: 4px;
+  }
+  #settings-save:hover { background: #1557b0; }
+  #settings-cancel {
+    width: 100%; padding: 8px; background: none; color: #5f6368;
+    border: none; font-size: 13px; cursor: pointer; margin-top: 6px;
+  }
+
+  /* ── 路程面板 ── */
+  #route-panel {
+    position: fixed; bottom: 24px; right: 24px; width: 320px;
+    background: #fff; border-radius: 14px; padding: 18px 20px;
+    box-shadow: 0 4px 24px rgba(0,0,0,.16); z-index: 500;
+    border: 1px solid #e0e0e0;
+  }
+  #route-panel.hidden { display: none; }
+  #route-panel-close {
+    position: absolute; top: 12px; right: 14px;
+    background: none; border: none; font-size: 18px; cursor: pointer; color: #80868b;
+  }
+  #route-title { font-size: 13px; font-weight: 600; color: #202124; margin-bottom: 12px; line-height: 1.4; }
+  .route-mode-btns { display: flex; gap: 8px; margin-bottom: 12px; }
+  .route-mode-btn {
+    flex: 1; padding: 6px 4px; border: 1px solid #dadce0; border-radius: 8px;
+    background: #fff; cursor: pointer; font-size: 12px; font-weight: 500; color: #3c4043;
+    transition: all .15s; text-align: center;
+  }
+  .route-mode-btn.active { background: #e8f0fe; border-color: #1a73e8; color: #1a73e8; }
+  #route-result { font-size: 13px; color: #202124; min-height: 36px; margin-bottom: 12px; line-height: 1.6; }
+  #route-update-btn {
+    width: 100%; padding: 8px; background: #1a73e8; color: #fff;
+    border: none; border-radius: 8px; font-size: 13px; font-weight: 500;
+    cursor: pointer; display: none;
+  }
+  #route-update-btn:hover { background: #1557b0; }
+  #route-update-btn.success { background: #137333; }
+
+  /* ── 加载状态 ── */
+  #loading {
+    position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
+    background: #202124; color: #fff; padding: 8px 18px; border-radius: 20px;
+    font-size: 13px; z-index: 600; transition: opacity .3s;
+  }
+  #loading.hidden { opacity: 0; pointer-events: none; }
+
+  /* ── 移动端 ── */
+  @media (max-width: 640px) {
+    #sidebar { width: 100%; height: 200px; border-right: none; border-bottom: 1px solid #e0e0e0; }
+    #main { flex-direction: column; }
+    #route-panel { left: 12px; right: 12px; width: auto; bottom: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 顶部栏 -->
+<div id="topbar">
+  <h1>🗺 旅行地图</h1>
+  <button id="reload-btn" onclick="loadPlaces()">刷新数据</button>
+  <button onclick="openSettings()">⚙ 设置</button>
+</div>
+
+<!-- 主体 -->
+<div id="main">
+  <!-- 侧边栏 -->
+  <div id="sidebar">
+    <div id="sidebar-header">行程地点</div>
+    <div id="sidebar-content">
+      <div id="sidebar-empty">加载中...</div>
+    </div>
+  </div>
+  <!-- 地图 -->
+  <div id="map"></div>
+</div>
+
+<!-- 加载提示 -->
+<div id="loading" class="hidden">加载中...</div>
+
+<!-- 路程面板 -->
+<div id="route-panel" class="hidden">
+  <button id="route-panel-close" onclick="closeRoutePanel()">✕</button>
+  <div id="route-title"></div>
+  <div class="route-mode-btns">
+    <button class="route-mode-btn active" onclick="selectMode(this,'DRIVING')">🚗 驾车</button>
+    <button class="route-mode-btn" onclick="selectMode(this,'TRANSIT')">🚌 公交</button>
+    <button class="route-mode-btn" onclick="selectMode(this,'WALKING')">🚶 步行</button>
+  </div>
+  <div id="route-result">选择交通方式后自动计算</div>
+  <button id="route-update-btn" onclick="updateNotion()">更新到 Notion</button>
+</div>
+
+<!-- 设置浮层 -->
+<div id="settings-overlay">
+  <div id="settings-box">
+    <h2>⚙ 配置</h2>
+    <div class="setting-field">
+      <label>Notion Token</label>
+      <input id="cfg-token" type="password" placeholder="ntn_xxxxxxxxxx" />
+    </div>
+    <div class="setting-field">
+      <label>Database ID</label>
+      <input id="cfg-dbid" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+      <div class="hint">Notion 数据库 URL 中 ?v= 前面那段</div>
+    </div>
+    <div class="setting-field">
+      <label>Google Maps API Key</label>
+      <input id="cfg-mapkey" placeholder="AIzaSy..." />
+      <div class="hint">需开启 Maps JS API + Directions API</div>
+    </div>
+    <button id="settings-save" onclick="saveSettings()">保存并加载地图</button>
+    <button id="settings-cancel" onclick="cancelSettings()">取消</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// 配置 & 状态
+// ═══════════════════════════════════════════════
+let CFG = { token: '', dbid: '', mapkey: '' };
+let map, directionsService;
+let markers = {};       // pageId -> marker
+let allPlaces = [];     // 所有地点数据
+let polylines = [];     // 所有折线
+let midpointMarkers = []; // 连线中点标记
+let routeState = {      // 当前路程计算状态
+  fromId: null, toId: null,
+  fromName: '', toName: '',
+  mode: 'DRIVING',
+  distText: '', timeText: ''
+};
+
+const DAY_COLORS = {
+  'Day 1': '#1a73e8',
+  'Day 2': '#34a853',
+  'Day 3': '#fa7b17',
+  'Day 4': '#9334e6',
+  'Day 5': '#ea4335',
+};
+const CAT_EMOJI = {
+  '餐厅': '🍜', '景点': '🗺', '酒店': '🏨', '交通枢纽': '✈️', '购物': '🛍'
+};
+
+// CORS 代理（主 + 备）
+const PROXY_PRIMARY   = 'https://cors-proxy.fringe.zone/';
+const PROXY_SECONDARY = 'https://corsproxy.io/?';
+
+// ═══════════════════════════════════════════════
+// 设置
+// ═══════════════════════════════════════════════
+function loadConfig() {
+  CFG.token  = localStorage.getItem('tm_token')  || '';
+  CFG.dbid   = localStorage.getItem('tm_dbid')   || '';
+  CFG.mapkey = localStorage.getItem('tm_mapkey') || '';
+}
+
+function openSettings() {
+  loadConfig();
+  document.getElementById('cfg-token').value  = CFG.token;
+  document.getElementById('cfg-dbid').value   = CFG.dbid;
+  document.getElementById('cfg-mapkey').value = CFG.mapkey;
+  document.getElementById('settings-overlay').classList.remove('hidden');
+}
+
+function cancelSettings() {
+  if (CFG.token && CFG.dbid && CFG.mapkey) {
+    document.getElementById('settings-overlay').classList.add('hidden');
+  }
+}
+
+function saveSettings() {
+  const token  = document.getElementById('cfg-token').value.trim();
+  const dbid   = document.getElementById('cfg-dbid').value.trim();
+  const mapkey = document.getElementById('cfg-mapkey').value.trim();
+  if (!token || !dbid || !mapkey) { alert('三项都必须填写'); return; }
+  localStorage.setItem('tm_token',  token);
+  localStorage.setItem('tm_dbid',   dbid);
+  localStorage.setItem('tm_mapkey', mapkey);
+  CFG = { token, dbid, mapkey };
+  document.getElementById('settings-overlay').classList.add('hidden');
+  initMap();
+}
+
+// ═══════════════════════════════════════════════
+// Google Maps 初始化
+// ═══════════════════════════════════════════════
+function initMap() {
+  if (!CFG.mapkey) return;
+  // 如果已经加载过，直接刷新数据
+  if (window.google && window.google.maps) {
+    loadPlaces();
+    return;
+  }
+  const script = document.createElement('script');
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${CFG.mapkey}&callback=onMapReady&libraries=geometry`;
+  script.async = true;
+  script.onerror = () => showLoading('Maps API 加载失败，请检查 API Key', false);
+  document.head.appendChild(script);
+}
+
+window.onMapReady = function () {
+  map = new google.maps.Map(document.getElementById('map'), {
+    center: { lat: 35, lng: 105 },
+    zoom: 5,
+    mapTypeControl: false,
+    streetViewControl: false,
+    fullscreenControl: true,
+  });
+  directionsService = new google.maps.DirectionsService();
+  loadPlaces();
+};
+
+// ═══════════════════════════════════════════════
+// 读取 Notion 数据
+// ═══════════════════════════════════════════════
+async function notionFetch(path, method = 'GET', body = null, useSecondary = false) {
+  const proxy = useSecondary ? PROXY_SECONDARY : PROXY_PRIMARY;
+  const url = proxy + 'https://api.notion.com/v1' + path;
+  const opts = {
+    method,
+    headers: {
+      'Authorization': `Bearer ${CFG.token}`,
+      'Notion-Version': '2022-06-28',
+      'Content-Type': 'application/json',
+    },
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(url, opts);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+async function loadPlaces() {
+  if (!CFG.token || !CFG.dbid) { openSettings(); return; }
+  if (!window.google) { initMap(); return; }
+  showLoading('加载地点中...');
+
+  try {
+    allPlaces = await fetchAllPages();
+    renderSidebar();
+    renderMap();
+    hideLoading();
+  } catch (e) {
+    console.error(e);
+    // 尝试备用代理
+    try {
+      allPlaces = await fetchAllPages(true);
+      renderSidebar();
+      renderMap();
+      hideLoading();
+    } catch (e2) {
+      hideLoading();
+      showLoading('加载失败：' + e2.message, false);
+    }
+  }
+}
+
+async function fetchAllPages(useSecondary = false) {
+  let results = [], cursor = undefined;
+  do {
+    const body = { page_size: 100 };
+    if (cursor) body.start_cursor = cursor;
+    const data = await notionFetch(`/databases/${CFG.dbid}/query`, 'POST', body, useSecondary);
+    results = results.concat(data.results);
+    cursor = data.has_more ? data.next_cursor : undefined;
+  } while (cursor);
+  return results.map(parsePage).filter(p => p.lat && p.lng);
+}
+
+function parsePage(page) {
+  const p = page.properties;
+  const get = (key, type) => {
+    if (!p[key]) return '';
+    const prop = p[key];
+    if (type === 'title')     return prop.title?.[0]?.plain_text || '';
+    if (type === 'text')      return prop.rich_text?.[0]?.plain_text || '';
+    if (type === 'select')    return prop.select?.name || '';
+    if (type === 'number')    return prop.number ?? '';
+    if (type === 'url')       return prop.url || '';
+    return '';
+  };
+  const latlng = get('经纬度', 'text');
+  const [latStr, lngStr] = latlng.split(',').map(s => s.trim());
+  const lat = parseFloat(latStr);
+  const lng = parseFloat(lngStr);
+  return {
+    id:       page.id,
+    name:     get('地点名', 'title'),
+    address:  get('地址', 'text'),
+    latlng,
+    lat:      isNaN(lat) ? null : lat,
+    lng:      isNaN(lng) ? null : lng,
+    category: get('分类', 'select'),
+    day:      get('行程日', 'select'),
+    order:    get('当日顺序', 'number'),
+    url:      get('Google Maps URL', 'url'),
+  };
+}
+
+// ═══════════════════════════════════════════════
+// 侧边栏渲染
+// ═══════════════════════════════════════════════
+function renderSidebar() {
+  const content = document.getElementById('sidebar-content');
+  if (!allPlaces.length) {
+    content.innerHTML = '<div id="sidebar-empty">暂无地点数据<br>请先用 Tampermonkey 脚本添加地点</div>';
+    return;
+  }
+
+  // 按天分组，每天内按顺序排序
+  const groups = {};
+  allPlaces.forEach(p => {
+    const day = p.day || '未分组';
+    if (!groups[day]) groups[day] = [];
+    groups[day].push(p);
+  });
+  Object.values(groups).forEach(arr => arr.sort((a, b) => (a.order || 99) - (b.order || 99)));
+
+  const dayOrder = ['Day 1','Day 2','Day 3','Day 4','Day 5','未分组'];
+  const sortedDays = Object.keys(groups).sort((a, b) => {
+    const ia = dayOrder.indexOf(a), ib = dayOrder.indexOf(b);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  });
+
+  content.innerHTML = sortedDays.map(day => {
+    const color = DAY_COLORS[day] || '#80868b';
+    const items = groups[day].map(p => `
+      <div class="place-item" onclick="focusPlace('${p.id}')" id="item-${p.id}">
+        <div class="place-num" style="background:${color}22;color:${color}">${p.order || '—'}</div>
+        <div>
+          <div class="place-name">${escHtml(p.name)} ${CAT_EMOJI[p.category] || ''}</div>
+          ${p.address ? `<div class="place-cat">${escHtml(p.address)}</div>` : ''}
+        </div>
+      </div>`).join('');
+    return `
+      <div class="day-group">
+        <div class="day-label">
+          <div class="day-dot" style="background:${color}"></div>
+          ${day}
+        </div>
+        ${items}
+      </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════
+// 地图渲染
+// ═══════════════════════════════════════════════
+function renderMap() {
+  // 清除旧 markers 和连线
+  Object.values(markers).forEach(m => m.setMap(null));
+  polylines.forEach(p => p.setMap(null));
+  midpointMarkers.forEach(m => m.setMap(null));
+  markers = {}; polylines = []; midpointMarkers = [];
+
+  if (!allPlaces.length) return;
+
+  const bounds = new google.maps.LatLngBounds();
+
+  // 画 markers
+  allPlaces.forEach(p => {
+    const color = DAY_COLORS[p.day] || '#80868b';
+    const emoji = CAT_EMOJI[p.category] || '📍';
+    const pos = { lat: p.lat, lng: p.lng };
+
+    const marker = new google.maps.Marker({
+      position: pos,
+      map,
+      title: p.name,
+      label: {
+        text: (p.order || '').toString(),
+        color: '#fff',
+        fontSize: '11px',
+        fontWeight: '600',
+      },
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 14,
+        fillColor: color,
+        fillOpacity: 1,
+        strokeColor: '#fff',
+        strokeWeight: 2,
+      },
+    });
+
+    const infoWin = new google.maps.InfoWindow({
+      content: `
+        <div style="font-family:'Google Sans',sans-serif;padding:4px 2px;min-width:160px">
+          <div style="font-size:14px;font-weight:600;color:#202124;margin-bottom:4px">${emoji} ${escHtml(p.name)}</div>
+          ${p.day ? `<div style="font-size:12px;color:#1a73e8;margin-bottom:2px">${p.day}${p.order ? ' · 第'+p.order+'站' : ''}</div>` : ''}
+          ${p.category ? `<div style="font-size:12px;color:#5f6368;margin-bottom:2px">${p.category}</div>` : ''}
+          ${p.address ? `<div style="font-size:12px;color:#80868b">${escHtml(p.address)}</div>` : ''}
+          ${p.url ? `<div style="margin-top:6px"><a href="${p.url}" target="_blank" style="font-size:12px;color:#1a73e8">在 Google Maps 打开 ↗</a></div>` : ''}
+        </div>`
+    });
+
+    marker.addListener('click', () => {
+      infoWin.open(map, marker);
+      highlightSidebarItem(p.id);
+    });
+
+    markers[p.id] = marker;
+    bounds.extend(pos);
+  });
+
+  // 画连线
+  const groups = {};
+  allPlaces.forEach(p => {
+    const day = p.day;
+    if (!day || day === '未分组') return;
+    if (!groups[day]) groups[day] = [];
+    groups[day].push(p);
+  });
+  Object.values(groups).forEach(arr => arr.sort((a, b) => (a.order || 99) - (b.order || 99)));
+
+  Object.entries(groups).forEach(([day, places]) => {
+    const color = DAY_COLORS[day] || '#80868b';
+    for (let i = 0; i < places.length - 1; i++) {
+      const from = places[i], to = places[i + 1];
+      const path = [
+        { lat: from.lat, lng: from.lng },
+        { lat: to.lat,   lng: to.lng   },
+      ];
+      const poly = new google.maps.Polyline({
+        path, map,
+        strokeColor: color,
+        strokeOpacity: 0.8,
+        strokeWeight: 3,
+        icons: [{
+          icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3, strokeColor: color },
+          offset: '50%',
+        }],
+      });
+      polylines.push(poly);
+
+      // 中点可点击标记
+      const midLat = (from.lat + to.lat) / 2;
+      const midLng = (from.lng + to.lng) / 2;
+      const midMarker = new google.maps.Marker({
+        position: { lat: midLat, lng: midLng },
+        map,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 8,
+          fillColor: '#fff',
+          fillOpacity: 1,
+          strokeColor: color,
+          strokeWeight: 2,
+        },
+        title: `${from.name} → ${to.name}`,
+      });
+      midpointMarkers.push(midMarker);
+
+      const fromRef = from, toRef = to;
+      const clickHandler = () => openRoutePanel(fromRef, toRef);
+      poly.addListener('click', clickHandler);
+      midMarker.addListener('click', clickHandler);
+    }
+  });
+
+  map.fitBounds(bounds);
+}
+
+// ═══════════════════════════════════════════════
+// 路程面板
+// ═══════════════════════════════════════════════
+function openRoutePanel(from, to) {
+  routeState.fromId   = from.id;
+  routeState.toId     = to.id;
+  routeState.fromName = from.name;
+  routeState.toName   = to.name;
+  routeState.fromLat  = from.lat;
+  routeState.fromLng  = from.lng;
+  routeState.toLat    = to.lat;
+  routeState.toLng    = to.lng;
+  routeState.distText = '';
+  routeState.timeText = '';
+
+  document.getElementById('route-title').textContent = `${from.name}  →  ${to.name}`;
+  document.getElementById('route-result').textContent = '选择交通方式后自动计算';
+  document.getElementById('route-update-btn').style.display = 'none';
+  document.getElementById('route-update-btn').textContent = '更新到 Notion';
+  document.getElementById('route-update-btn').className = '';
+
+  // 重置按钮选中状态
+  document.querySelectorAll('.route-mode-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.route-mode-btn').classList.add('active');
+  routeState.mode = 'DRIVING';
+
+  document.getElementById('route-panel').classList.remove('hidden');
+  calcRoute();
+}
+
+function closeRoutePanel() {
+  document.getElementById('route-panel').classList.add('hidden');
+}
+
+function selectMode(btn, mode) {
+  document.querySelectorAll('.route-mode-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  routeState.mode = mode;
+  calcRoute();
+}
+
+function calcRoute() {
+  if (!directionsService) return;
+  document.getElementById('route-result').textContent = '计算中...';
+  document.getElementById('route-update-btn').style.display = 'none';
+
+  directionsService.route({
+    origin:      { lat: routeState.fromLat, lng: routeState.fromLng },
+    destination: { lat: routeState.toLat,   lng: routeState.toLng   },
+    travelMode:  google.maps.TravelMode[routeState.mode],
+  }, (result, status) => {
+    if (status === 'OK') {
+      const leg = result.routes[0].legs[0];
+      routeState.distText = leg.distance.text;
+      routeState.timeText = leg.duration.text;
+      document.getElementById('route-result').innerHTML =
+        `<strong>${leg.duration.text}</strong> · ${leg.distance.text}`;
+      document.getElementById('route-update-btn').style.display = 'block';
+    } else {
+      document.getElementById('route-result').textContent = '计算失败：' + status;
+    }
+  });
+}
+
+async function updateNotion() {
+  const btn = document.getElementById('route-update-btn');
+  btn.textContent = '更新中...';
+  btn.disabled = true;
+
+  const modeMap = { DRIVING: '驾车', TRANSIT: '公共交通', WALKING: '步行' };
+  const 耗时 = `${routeState.timeText} / ${routeState.distText}`;
+  const 方式 = modeMap[routeState.mode] || '驾车';
+
+  try {
+    await notionFetch(`/pages/${routeState.fromId}`, 'PATCH', {
+      properties: {
+        '交通耗时': { rich_text: [{ text: { content: 耗时 } }] },
+        '交通方式': { select: { name: 方式 } },
+      }
+    });
+    btn.textContent = '✓ 已更新';
+    btn.className = 'success';
+    btn.disabled = false;
+    // 更新本地数据
+    const place = allPlaces.find(p => p.id === routeState.fromId);
+    if (place) { place.travelTime = 耗时; place.travelMode = 方式; }
+  } catch (e) {
+    btn.textContent = '更新失败：' + e.message;
+    btn.disabled = false;
+  }
+}
+
+// ═══════════════════════════════════════════════
+// 侧边栏联动
+// ═══════════════════════════════════════════════
+function focusPlace(id) {
+  const place = allPlaces.find(p => p.id === id);
+  if (!place || !markers[id]) return;
+  map.panTo({ lat: place.lat, lng: place.lng });
+  map.setZoom(15);
+  google.maps.event.trigger(markers[id], 'click');
+  highlightSidebarItem(id);
+}
+
+function highlightSidebarItem(id) {
+  document.querySelectorAll('.place-item').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById('item-' + id);
+  if (el) { el.classList.add('active'); el.scrollIntoView({ block: 'nearest' }); }
+}
+
+// ═══════════════════════════════════════════════
+// 工具
+// ═══════════════════════════════════════════════
+function showLoading(msg, autoHide = true) {
+  const el = document.getElementById('loading');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  if (autoHide) setTimeout(hideLoading, 3000);
+}
+function hideLoading() {
+  document.getElementById('loading').classList.add('hidden');
+}
+function escHtml(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ═══════════════════════════════════════════════
+// 启动
+// ═══════════════════════════════════════════════
+loadConfig();
+if (CFG.token && CFG.dbid && CFG.mapkey) {
+  document.getElementById('settings-overlay').classList.add('hidden');
+  initMap();
+} else {
+  // 首次使用，显示设置
+  document.getElementById('settings-cancel').style.display = 'none';
+}
+</script>
+
+<!-- Cloudflare Worker 备用代理方案（若主代理不稳定）
+===================================================
+1. 打开 https://workers.cloudflare.com/ 注册免费账号
+2. 新建 Worker，粘贴以下代码，保存部署：
+
+export default {
+  async fetch(request) {
+    const url = new URL(request.url);
+    const target = url.searchParams.get('url') || url.pathname.slice(1);
+    if (!target.startsWith('https://api.notion.com')) {
+      return new Response('Forbidden', { status: 403 });
+    }
+    const headers = new Headers(request.headers);
+    headers.delete('origin');
+    headers.delete('referer');
+    const res = await fetch(target, { method: request.method, headers, body: request.body });
+    const newRes = new Response(res.body, res);
+    newRes.headers.set('Access-Control-Allow-Origin', '*');
+    newRes.headers.set('Access-Control-Allow-Headers', '*');
+    newRes.headers.set('Access-Control-Allow-Methods', '*');
+    return newRes;
+  }
+}
+
+3. 把 Worker 的 URL（如 https://my-proxy.xxx.workers.dev/）
+   替换代码顶部的 PROXY_PRIMARY 变量即可。
+=================================================== -->
+
+</body>
+</html>
