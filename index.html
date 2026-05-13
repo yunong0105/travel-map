@@ -3,45 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>📍 我的旅行规划地图</title>
-    <script type="text/javascript">
-        window._AMapSecurityConfig = { securityJsCode: "6c6d07497cc206aae015317c09f1a0b5" };
-    </script>
+    <title>📍 全球旅行规划地图</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root { --primary: #007aff; --bg: #f5f5f7; --sidebar-w: 300px; }
         body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, sans-serif; background: var(--bg); overflow: hidden; }
         #main { display: flex; height: 100%; }
-        #map-container { flex: 1; position: relative; }
+        #map-container { flex: 1; position: relative; z-index: 1; }
         #sidebar { width: var(--sidebar-w); background: white; border-right: 1px solid #ddd; display: flex; flex-direction: column; z-index: 10; }
         #sidebar-header { padding: 15px 20px; border-bottom: 1px solid #eee; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
         #poi-list { flex: 1; overflow-y: auto; padding: 10px; }
         .day-section { margin-bottom: 15px; }
-        .day-title { font-size: 12px; color: #888; text-transform: uppercase; padding: 5px 10px; background: #fafafa; border-radius: 4px; }
-        .poi-card { padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #eee; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 10px; }
+        .day-title { font-size: 12px; color: #888; text-transform: uppercase; padding: 5px 10px; background: #fafafa; border-radius: 4px; margin-bottom: 5px; }
+        .poi-card { padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #eee; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 10px; background: #fff; }
         .poi-card:hover { background: #f0f7ff; border-color: var(--primary); }
-        .poi-order { width: 20px; height: 20px; background: var(--primary); color: white; border-radius: 50%; font-size: 11px; display: flex; align-items: center; justify-content: center; }
+        .poi-order { width: 20px; height: 20px; background: var(--primary); color: white; border-radius: 50%; font-size: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         #config-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 999; }
-        .modal-content { background: white; padding: 30px; border-radius: 16px; width: 350px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .modal-content { background: white; padding: 30px; border-radius: 16px; width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
         .modal-content input { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         .save-btn { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 10px; }
-        .btn-group { display: flex; gap: 10px; }
         .icon-btn { border: none; background: none; cursor: pointer; color: var(--primary); font-size: 14px; display: flex; align-items: center; gap: 4px; }
     </style>
 </head>
 <body>
 
-<div id="config-modal">
+<div id="config-modal" style="display: none;">
     <div class="modal-content">
-        <h3 style="margin-top:0">⚙️ 地图配置</h3>
-        <label style="font-size:12px">Notion Token</label>
-        <input type="password" id="notion-token" placeholder="secret_xxxxxx">
+        <h3 style="margin-top:0">⚙️ 配置 Notion</h3>
+        <p style="font-size: 12px; color: #666;">此方案无需高德 Key，直接填入 Notion 参数即可。</p>
+        <label style="font-size:12px">Notion Token (ntn_xxx)</label>
+        <input type="password" id="notion-token" placeholder="粘贴你的 Token">
         <label style="font-size:12px">Database ID</label>
-        <input type="text" id="db-id" placeholder="32位字符">
-        <label style="font-size:12px">高德地图 Key</label>
-        <input type="text" id="amap-key" placeholder="Key">
-        <label style="font-size:12px">高德地图 安全密钥</label>
-        <input type="password" id="amap-security" placeholder="必填项">
-        <button class="save-btn" onclick="saveConfig()">保存配置</button>
+        <input type="text" id="db-id" placeholder="粘贴 32 位 ID">
+        <button class="save-btn" onclick="saveConfig()">保存并查看地图</button>
     </div>
 </div>
 
@@ -49,94 +43,122 @@
     <div id="sidebar">
         <div id="sidebar-header">
             <span>行程清单</span>
-            <div class="btn-group">
+            <div style="display:flex; gap:10px">
                 <button onclick="fetchNotionData()" class="icon-btn">🔄 刷新</button>
-                <button onclick="document.getElementById('config-modal').style.display='flex'" class="icon-btn" style="color:#666">⚙️ 设置</button>
+                <button onclick="document.getElementById('config-modal').style.display='flex'" class="icon-btn" style="color:#666">⚙️</button>
             </div>
         </div>
-        <div id="poi-list"><p style="text-align:center; color:#999; margin-top:20px;">等待数据...</p></div>
+        <div id="poi-list"><p style="text-align:center; color:#999; margin-top:20px;">等待输入配置...</p></div>
     </div>
-    <div id="map-container"><div id="container" style="width:100%; height:100%"></div></div>
+    <div id="map-container"></div>
 </div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    let map, markers = [], polylines = [];
+    let map, markers = [], polyline;
     const DAY_COLORS = { 'Day 1': '#007aff', 'Day 2': '#34c759', 'Day 3': '#ff9500', 'Day 4': '#5856d6', 'Day 5': '#ff3b30' };
-    const EMOJIS = { '餐厅': '🍜', '景点': '🗺️', '酒店': '🏨', '交通枢纽': '✈️', '购物': '🛍️' };
 
     function saveConfig() {
         const config = {
-            token: document.getElementById('notion-token').value,
-            dbId: document.getElementById('db-id').value,
-            key: document.getElementById('amap-key').value,
-            sec: document.getElementById('amap-security').value
+            token: document.getElementById('notion-token').value.trim(),
+            dbId: document.getElementById('db-id').value.trim()
         };
-        localStorage.setItem('amap_map_config', JSON.stringify(config));
+        if(!config.token || !config.dbId) return alert("请填入完整信息");
+        localStorage.setItem('notion_travel_config', JSON.stringify(config));
         location.reload();
     }
 
     window.onload = function() {
-        const cfg = JSON.parse(localStorage.getItem('amap_map_config'));
-        if (cfg && cfg.key) {
-            document.getElementById('config-modal').style.display = 'none';
-            window._AMapSecurityConfig.securityJsCode = cfg.sec;
-            const script = document.createElement('script');
-            script.src = `https://webapi.amap.com/maps?v=2.0&key=${cfg.key}&viewMode=3D&worldVector=true`;
-            script.onload = () => {
-                map = new AMap.Map('container', { zoom: 11, viewMode: '3D' });
-                fetchNotionData();
-            };
-            document.head.appendChild(script);
+        const cfg = JSON.parse(localStorage.getItem('notion_travel_config'));
+        
+        // 1. 初始化地图（Leaflet 默认使用 OpenStreetMap）
+        map = L.map('map-container').setView([3.1390, 101.6869], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        if (!cfg) {
+            document.getElementById('config-modal').style.display = 'flex';
+        } else {
+            fetchNotionData();
         }
     };
 
     async function fetchNotionData() {
-        const cfg = JSON.parse(localStorage.getItem('amap_map_config'));
+        const cfg = JSON.parse(localStorage.getItem('notion_travel_config'));
         const proxy = "https://corsproxy.io/?https://api.notion.com/v1/databases/" + cfg.dbId + "/query";
+        
+        document.getElementById('poi-list').innerHTML = '<p style="text-align:center; color:#999; margin-top:20px;">数据拉取中...</p>';
+        
         try {
             const res = await fetch(proxy, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${cfg.token}`, 'Notion-Version': '2022-06-28', 'Content-Type': 'application/json' }
             });
             const data = await res.json();
-            if (data.results) renderData(data.results);
-            else alert("获取失败，请检查配置");
-        } catch (e) { alert("网络错误，请稍后再试"); }
+            if (data.results) {
+                renderData(data.results);
+            } else {
+                throw new Error();
+            }
+        } catch (e) { 
+            alert("获取失败！请检查 Notion Token 是否正确，或是否在 Notion 数据库中添加了 Connection。");
+            document.getElementById('config-modal').style.display = 'flex';
+        }
     }
 
     function renderData(results) {
-        map.remove(markers); map.remove(polylines); markers = []; polylines = [];
+        markers.forEach(m => map.removeLayer(m));
+        if(polyline) map.removeLayer(polyline);
+        markers = [];
+
         const pois = results.map(page => {
             const p = page.properties;
             return {
-                name: p['地点名']?.title[0]?.plain_text || '无名',
-                day: p['行程日']?.select?.name || '未安排',
+                name: p['地点名']?.title[0]?.plain_text || '未命名',
+                day: p['行程日']?.select?.name || 'Day 1',
                 order: p['当日顺序']?.number || 0,
-                latlng: p['经纬度']?.rich_text[0]?.plain_text || '',
-                cat: p['分类']?.select?.name || '其他'
+                latlng: p['经纬度']?.rich_text[0]?.plain_text || ''
             };
-        }).filter(item => item.latlng.includes(','));
+        }).filter(item => item.latlng.includes(',')).sort((a, b) => a.order - b.order);
 
-        const days = {};
-        pois.forEach(p => { if(!days[p.day]) days[p.day] = []; days[p.day].push(p); });
         const listHtml = [];
+        const path = [];
+        const days = {};
+
+        pois.forEach(p => { if(!days[p.day]) days[p.day] = []; days[p.day].push(p); });
+
         Object.keys(days).sort().forEach(day => {
-            const color = DAY_COLORS[day] || '#999';
-            days[day].sort((a,b) => a.order - b.order);
+            const color = DAY_COLORS[day] || '#007aff';
             listHtml.push(`<div class="day-section"><div class="day-title">${day}</div>`);
-            const path = [];
+            
             days[day].forEach(p => {
                 const [lat, lng] = p.latlng.split(',').map(Number);
-                path.push([lng, lat]);
-                const m = new AMap.Marker({ position:[lng, lat], map:map, content:`<div style="text-align:center"><div style="font-size:20px">${EMOJIS[p.cat]||'📍'}</div><div style="background:${color}; color:white; font-size:10px; border-radius:4px; padding:2px 5px; white-space:nowrap">${p.name}</div></div>` });
-                markers.push(m);
-                listHtml.push(`<div class="poi-card" onclick="map.setZoomAndCenter(15, [${lng}, ${lat}])"><div class="poi-order" style="background:${color}">${p.order}</div><div><b>${p.name}</b><div style="font-size:11px; color:#999">${p.cat}</div></div></div>`);
+                path.push([lat, lng]);
+
+                // 添加漂亮的点标记
+                const marker = L.circleMarker([lat, lng], {
+                    radius: 8, fillOpacity: 0.8, color: '#fff', weight: 2, fillColor: color
+                }).addTo(map).bindPopup(`<b>${p.name}</b><br>${p.day}`);
+                markers.push(marker);
+
+                listHtml.push(`
+                    <div class="poi-card" onclick="map.flyTo([${lat}, ${lng}], 16)">
+                        <div class="poi-order" style="background:${color}">${p.order}</div>
+                        <div><b>${p.name}</b><div style="font-size:11px;color:#999">${p.day}</div></div>
+                    </div>
+                `);
             });
-            if(path.length > 1) polylines.push(new AMap.Polyline({ path, strokeColor:color, strokeWeight:6, map:map }));
             listHtml.push(`</div>`);
         });
+
+        if (path.length > 1) {
+            polyline = L.polyline(path, {color: '#007aff', weight: 3, dashArray: '5, 10'}).addTo(map);
+        }
+        
         document.getElementById('poi-list').innerHTML = listHtml.join('');
-        map.setFitView();
+        if(path.length > 0) map.fitBounds(L.latLngBounds(path));
     }
 </script>
 </body>
