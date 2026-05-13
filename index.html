@@ -86,7 +86,7 @@
 
     async function fetchNotionData() {
         const cfg = JSON.parse(localStorage.getItem('amap_map_config'));
-        const proxy = "https://cors-proxy.fringe.zone/https://api.notion.com/v1/databases/" + cfg.dbId + "/query";
+        const proxy = "https://corsproxy.io/?https://api.notion.com/v1/databases/" + cfg.dbId + "/query";
         try {
             const res = await fetch(proxy, {
                 method: 'POST',
