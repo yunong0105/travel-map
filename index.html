@@ -1,725 +1,302 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🗺 旅行地图</title>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>📍 我的旅行规划地图 (高德版)</title>
+    <script type="text/javascript">
+        window._AMapSecurityConfig = { securityJsCode: "" }; // 稍后在设置中动态填入
+    </script>
+    <script src="https://webapi.amap.com/maps?v=2.0&key=YOUR_KEY&plugin=AMap.Driving,AMap.Transfer,AMap.Walking,AMap.PolylineEditor"></script>
+    <style>
+        :root { --primary: #007aff; --bg: #f5f5f7; --sidebar-w: 300px; }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: -apple-system, sans-serif; background: var(--bg); overflow: hidden; }
+        
+        #main { display: flex; height: 100%; }
+        #map-container { flex: 1; position: relative; }
+        
+        /* 侧边栏 */
+        #sidebar { 
+            width: var(--sidebar-w); background: white; border-right: 1px solid #ddd; 
+            display: flex; flex-direction: column; z-index: 10; transition: 0.3s;
+        }
+        #sidebar-header { padding: 20px; border-bottom: 1px solid #eee; font-weight: bold; display: flex; justify-content: space-between; }
+        #poi-list { flex: 1; overflow-y: auto; padding: 10px; }
+        .day-section { margin-bottom: 15px; }
+        .day-title { font-size: 12px; color: #888; text-transform: uppercase; padding: 5px 10px; background: #fafafa; border-radius: 4px; }
+        .poi-card { 
+            padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #eee; 
+            cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 10px;
+        }
+        .poi-card:hover { background: #f0f7ff; border-color: var(--primary); }
+        .poi-order { width: 20px; height: 20px; background: var(--primary); color: white; border-radius: 50%; font-size: 11px; display: flex; align-items: center; justify-content: center; }
 
-  body { font-family: 'Google Sans', -apple-system, sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; background: #f8f9fa; }
+        /* 配置弹窗 */
+        #config-modal { 
+            position: fixed; inset: 0; background: rgba(0,0,0,0.6); 
+            display: flex; align-items: center; justify-content: center; z-index: 999; 
+        }
+        .modal-content { background: white; padding: 30px; border-radius: 16px; width: 350px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .modal-content input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        .save-btn { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
 
-  /* ── 顶部栏 ── */
-  #topbar {
-    height: 52px; background: #fff; border-bottom: 1px solid #e0e0e0;
-    display: flex; align-items: center; padding: 0 16px; gap: 12px;
-    z-index: 100; flex-shrink: 0;
-  }
-  #topbar h1 { font-size: 16px; font-weight: 600; color: #202124; flex: 1; }
-  #topbar button {
-    padding: 6px 14px; border-radius: 8px; border: 1px solid #dadce0;
-    background: #fff; cursor: pointer; font-size: 13px; font-weight: 500;
-    color: #3c4043; transition: background .15s;
-  }
-  #topbar button:hover { background: #f1f3f4; }
-  #reload-btn { background: #1a73e8; color: #fff; border-color: #1a73e8; }
-  #reload-btn:hover { background: #1557b0; }
+        /* 路线面板 */
+        #route-panel { 
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            display: none; width: 280px; z-index: 100;
+        }
 
-  /* ── 主体布局 ── */
-  #main { display: flex; flex: 1; overflow: hidden; }
-
-  /* ── 侧边栏 ── */
-  #sidebar {
-    width: 280px; background: #fff; border-right: 1px solid #e0e0e0;
-    overflow-y: auto; flex-shrink: 0; display: flex; flex-direction: column;
-  }
-  #sidebar-header {
-    padding: 12px 16px 8px; font-size: 12px; font-weight: 600;
-    color: #5f6368; letter-spacing: .06em; text-transform: uppercase;
-    border-bottom: 1px solid #f1f3f4; flex-shrink: 0;
-  }
-  .day-group { border-bottom: 1px solid #f1f3f4; }
-  .day-label {
-    padding: 8px 16px; font-size: 12px; font-weight: 600;
-    display: flex; align-items: center; gap: 8px; cursor: default;
-  }
-  .day-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-  .place-item {
-    padding: 8px 16px 8px 34px; font-size: 13px; cursor: pointer;
-    display: flex; align-items: flex-start; gap: 8px;
-    transition: background .12s; line-height: 1.4;
-  }
-  .place-item:hover { background: #f8f9fa; }
-  .place-item.active { background: #e8f0fe; }
-  .place-num {
-    width: 18px; height: 18px; border-radius: 50%; font-size: 10px;
-    font-weight: 600; display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0; margin-top: 1px;
-  }
-  .place-name { flex: 1; color: #202124; }
-  .place-cat { font-size: 11px; color: #80868b; margin-top: 2px; }
-
-  #sidebar-empty {
-    padding: 32px 16px; text-align: center; color: #80868b; font-size: 13px; line-height: 1.6;
-  }
-
-  /* ── 地图 ── */
-  #map { flex: 1; }
-
-  /* ── 设置浮层 ── */
-  #settings-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,.4);
-    z-index: 9999; display: flex; align-items: center; justify-content: center;
-  }
-  #settings-overlay.hidden { display: none; }
-  #settings-box {
-    background: #fff; border-radius: 16px; padding: 24px 28px;
-    width: 380px; max-width: 95vw;
-    box-shadow: 0 8px 40px rgba(0,0,0,.18);
-  }
-  #settings-box h2 { font-size: 17px; font-weight: 600; margin-bottom: 18px; color: #202124; }
-  .setting-field { margin-bottom: 14px; }
-  .setting-field label { display: block; font-size: 12px; color: #5f6368; margin-bottom: 4px; font-weight: 500; }
-  .setting-field input {
-    width: 100%; padding: 8px 12px; border: 1px solid #dadce0;
-    border-radius: 8px; font-size: 13px; color: #202124; outline: none;
-  }
-  .setting-field input:focus { border-color: #1a73e8; }
-  .setting-field .hint { font-size: 11px; color: #80868b; margin-top: 3px; }
-  #settings-save {
-    width: 100%; padding: 10px; background: #1a73e8; color: #fff;
-    border: none; border-radius: 8px; font-size: 14px; font-weight: 500;
-    cursor: pointer; margin-top: 4px;
-  }
-  #settings-save:hover { background: #1557b0; }
-  #settings-cancel {
-    width: 100%; padding: 8px; background: none; color: #5f6368;
-    border: none; font-size: 13px; cursor: pointer; margin-top: 6px;
-  }
-
-  /* ── 路程面板 ── */
-  #route-panel {
-    position: fixed; bottom: 24px; right: 24px; width: 320px;
-    background: #fff; border-radius: 14px; padding: 18px 20px;
-    box-shadow: 0 4px 24px rgba(0,0,0,.16); z-index: 500;
-    border: 1px solid #e0e0e0;
-  }
-  #route-panel.hidden { display: none; }
-  #route-panel-close {
-    position: absolute; top: 12px; right: 14px;
-    background: none; border: none; font-size: 18px; cursor: pointer; color: #80868b;
-  }
-  #route-title { font-size: 13px; font-weight: 600; color: #202124; margin-bottom: 12px; line-height: 1.4; }
-  .route-mode-btns { display: flex; gap: 8px; margin-bottom: 12px; }
-  .route-mode-btn {
-    flex: 1; padding: 6px 4px; border: 1px solid #dadce0; border-radius: 8px;
-    background: #fff; cursor: pointer; font-size: 12px; font-weight: 500; color: #3c4043;
-    transition: all .15s; text-align: center;
-  }
-  .route-mode-btn.active { background: #e8f0fe; border-color: #1a73e8; color: #1a73e8; }
-  #route-result { font-size: 13px; color: #202124; min-height: 36px; margin-bottom: 12px; line-height: 1.6; }
-  #route-update-btn {
-    width: 100%; padding: 8px; background: #1a73e8; color: #fff;
-    border: none; border-radius: 8px; font-size: 13px; font-weight: 500;
-    cursor: pointer; display: none;
-  }
-  #route-update-btn:hover { background: #1557b0; }
-  #route-update-btn.success { background: #137333; }
-
-  /* ── 加载状态 ── */
-  #loading {
-    position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
-    background: #202124; color: #fff; padding: 8px 18px; border-radius: 20px;
-    font-size: 13px; z-index: 600; transition: opacity .3s;
-  }
-  #loading.hidden { opacity: 0; pointer-events: none; }
-
-  /* ── 移动端 ── */
-  @media (max-width: 640px) {
-    #sidebar { width: 100%; height: 200px; border-right: none; border-bottom: 1px solid #e0e0e0; }
-    #main { flex-direction: column; }
-    #route-panel { left: 12px; right: 12px; width: auto; bottom: 12px; }
-  }
-</style>
+        @media (max-width: 768px) {
+            #sidebar { position: absolute; transform: translateX(-100%); height: 50%; bottom: 0; width: 100%; border-right: none; border-top: 1px solid #ddd; }
+            #sidebar.open { transform: translateX(0); }
+        }
+    </style>
 </head>
 <body>
 
-<!-- 顶部栏 -->
-<div id="topbar">
-  <h1>🗺 旅行地图</h1>
-  <button id="reload-btn" onclick="loadPlaces()">刷新数据</button>
-  <button onclick="openSettings()">⚙ 设置</button>
+<div id="config-modal">
+    <div class="modal-content">
+        <h3 style="margin-top:0">⚙️ 初始化配置</h3>
+        <label style="font-size:12px">Notion Token</label>
+        <input type="password" id="notion-token" placeholder="secret_xxxxxx">
+        <label style="font-size:12px">Database ID</label>
+        <input type="text" id="db-id" placeholder="32位字符">
+        <label style="font-size:12px">高德地图 Key (Web端JS API)</label>
+        <input type="text" id="amap-key" placeholder="高德控制台申请的Key">
+        <label style="font-size:12px">高德地图 安全密钥</label>
+        <input type="password" id="amap-security" placeholder="必填，否则无法显示">
+        <button class="save-btn" onclick="saveConfig()">进入地图</button>
+    </div>
 </div>
 
-<!-- 主体 -->
 <div id="main">
-  <!-- 侧边栏 -->
-  <div id="sidebar">
-    <div id="sidebar-header">行程地点</div>
-    <div id="sidebar-content">
-      <div id="sidebar-empty">加载中...</div>
+    <div id="sidebar">
+        <div id="sidebar-header">
+            <span>行程清单</span>
+            <button onclick="fetchNotionData()" style="border:none; background:none; cursor:pointer; color:var(--primary)">🔄 刷新</button>
+        </div>
+        <div id="poi-list">
+            <p style="text-align:center; color:#999; margin-top:20px;">等待数据加载...</p>
+        </div>
     </div>
-  </div>
-  <!-- 地图 -->
-  <div id="map"></div>
-</div>
-
-<!-- 加载提示 -->
-<div id="loading" class="hidden">加载中...</div>
-
-<!-- 路程面板 -->
-<div id="route-panel" class="hidden">
-  <button id="route-panel-close" onclick="closeRoutePanel()">✕</button>
-  <div id="route-title"></div>
-  <div class="route-mode-btns">
-    <button class="route-mode-btn active" onclick="selectMode(this,'DRIVING')">🚗 驾车</button>
-    <button class="route-mode-btn" onclick="selectMode(this,'TRANSIT')">🚌 公交</button>
-    <button class="route-mode-btn" onclick="selectMode(this,'WALKING')">🚶 步行</button>
-  </div>
-  <div id="route-result">选择交通方式后自动计算</div>
-  <button id="route-update-btn" onclick="updateNotion()">更新到 Notion</button>
-</div>
-
-<!-- 设置浮层 -->
-<div id="settings-overlay">
-  <div id="settings-box">
-    <h2>⚙ 配置</h2>
-    <div class="setting-field">
-      <label>Notion Token</label>
-      <input id="cfg-token" type="password" placeholder="ntn_xxxxxxxxxx" />
+    <div id="map-container">
+        <div id="container" style="width:100%; height:100%"></div>
+        <div id="route-panel">
+            <div id="route-info" style="font-size:14px; margin-bottom:10px; font-weight:bold"></div>
+            <select id="mode-select" style="width:100%; padding:5px; margin-bottom:10px">
+                <option value="driving">🚗 驾车</option>
+                <option value="transfer">🚌 公交</option>
+                <option value="walking">🚶 步行</option>
+            </select>
+            <div id="route-detail" style="font-size:12px; color:#666; margin-bottom:10px">计算中...</div>
+            <button class="save-btn" id="sync-notion-btn" style="padding:8px">更新到 Notion</button>
+        </div>
     </div>
-    <div class="setting-field">
-      <label>Database ID</label>
-      <input id="cfg-dbid" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
-      <div class="hint">Notion 数据库 URL 中 ?v= 前面那段</div>
-    </div>
-    <div class="setting-field">
-      <label>Google Maps API Key</label>
-      <input id="cfg-mapkey" placeholder="AIzaSy..." />
-      <div class="hint">需开启 Maps JS API + Directions API</div>
-    </div>
-    <button id="settings-save" onclick="saveSettings()">保存并加载地图</button>
-    <button id="settings-cancel" onclick="cancelSettings()">取消</button>
-  </div>
 </div>
 
 <script>
-// ═══════════════════════════════════════════════
-// 配置 & 状态
-// ═══════════════════════════════════════════════
-let CFG = { token: '', dbid: '', mapkey: '' };
-let map, directionsService;
-let markers = {};       // pageId -> marker
-let allPlaces = [];     // 所有地点数据
-let polylines = [];     // 所有折线
-let midpointMarkers = []; // 连线中点标记
-let routeState = {      // 当前路程计算状态
-  fromId: null, toId: null,
-  fromName: '', toName: '',
-  mode: 'DRIVING',
-  distText: '', timeText: ''
-};
+    let map, markers = [], polylines = [];
+    const DAY_COLORS = { 'Day 1': '#007aff', 'Day 2': '#34c759', 'Day 3': '#ff9500', 'Day 4': '#5856d6', 'Day 5': '#ff3b30' };
+    const EMOJIS = { '餐厅': '🍜', '景点': '🗺️', '酒店': '🏨', '交通枢纽': '✈️', '购物': '🛍️' };
 
-const DAY_COLORS = {
-  'Day 1': '#1a73e8',
-  'Day 2': '#34a853',
-  'Day 3': '#fa7b17',
-  'Day 4': '#9334e6',
-  'Day 5': '#ea4335',
-};
-const CAT_EMOJI = {
-  '餐厅': '🍜', '景点': '🗺', '酒店': '🏨', '交通枢纽': '✈️', '购物': '🛍'
-};
-
-// CORS 代理（主 + 备）
-const PROXY_PRIMARY   = 'https://cors-proxy.fringe.zone/';
-const PROXY_SECONDARY = 'https://corsproxy.io/?';
-
-// ═══════════════════════════════════════════════
-// 设置
-// ═══════════════════════════════════════════════
-function loadConfig() {
-  CFG.token  = localStorage.getItem('tm_token')  || '';
-  CFG.dbid   = localStorage.getItem('tm_dbid')   || '';
-  CFG.mapkey = localStorage.getItem('tm_mapkey') || '';
-}
-
-function openSettings() {
-  loadConfig();
-  document.getElementById('cfg-token').value  = CFG.token;
-  document.getElementById('cfg-dbid').value   = CFG.dbid;
-  document.getElementById('cfg-mapkey').value = CFG.mapkey;
-  document.getElementById('settings-overlay').classList.remove('hidden');
-}
-
-function cancelSettings() {
-  if (CFG.token && CFG.dbid && CFG.mapkey) {
-    document.getElementById('settings-overlay').classList.add('hidden');
-  }
-}
-
-function saveSettings() {
-  const token  = document.getElementById('cfg-token').value.trim();
-  const dbid   = document.getElementById('cfg-dbid').value.trim();
-  const mapkey = document.getElementById('cfg-mapkey').value.trim();
-  if (!token || !dbid || !mapkey) { alert('三项都必须填写'); return; }
-  localStorage.setItem('tm_token',  token);
-  localStorage.setItem('tm_dbid',   dbid);
-  localStorage.setItem('tm_mapkey', mapkey);
-  CFG = { token, dbid, mapkey };
-  document.getElementById('settings-overlay').classList.add('hidden');
-  initMap();
-}
-
-// ═══════════════════════════════════════════════
-// Google Maps 初始化
-// ═══════════════════════════════════════════════
-function initMap() {
-  if (!CFG.mapkey) return;
-  // 如果已经加载过，直接刷新数据
-  if (window.google && window.google.maps) {
-    loadPlaces();
-    return;
-  }
-  const script = document.createElement('script');
-  script.src = `https://maps.googleapis.com/maps/api/js?key=${CFG.mapkey}&callback=onMapReady&libraries=geometry`;
-  script.async = true;
-  script.onerror = () => showLoading('Maps API 加载失败，请检查 API Key', false);
-  document.head.appendChild(script);
-}
-
-window.onMapReady = function () {
-  map = new google.maps.Map(document.getElementById('map'), {
-    center: { lat: 35, lng: 105 },
-    zoom: 5,
-    mapTypeControl: false,
-    streetViewControl: false,
-    fullscreenControl: true,
-  });
-  directionsService = new google.maps.DirectionsService();
-  loadPlaces();
-};
-
-// ═══════════════════════════════════════════════
-// 读取 Notion 数据
-// ═══════════════════════════════════════════════
-async function notionFetch(path, method = 'GET', body = null, useSecondary = false) {
-  const proxy = useSecondary ? PROXY_SECONDARY : PROXY_PRIMARY;
-  const url = proxy + 'https://api.notion.com/v1' + path;
-  const opts = {
-    method,
-    headers: {
-      'Authorization': `Bearer ${CFG.token}`,
-      'Notion-Version': '2022-06-28',
-      'Content-Type': 'application/json',
-    },
-  };
-  if (body) opts.body = JSON.stringify(body);
-  const res = await fetch(url, opts);
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || `HTTP ${res.status}`);
-  }
-  return res.json();
-}
-
-async function loadPlaces() {
-  if (!CFG.token || !CFG.dbid) { openSettings(); return; }
-  if (!window.google) { initMap(); return; }
-  showLoading('加载地点中...');
-
-  try {
-    allPlaces = await fetchAllPages();
-    renderSidebar();
-    renderMap();
-    hideLoading();
-  } catch (e) {
-    console.error(e);
-    // 尝试备用代理
-    try {
-      allPlaces = await fetchAllPages(true);
-      renderSidebar();
-      renderMap();
-      hideLoading();
-    } catch (e2) {
-      hideLoading();
-      showLoading('加载失败：' + e2.message, false);
+    // 1. 配置管理
+    function saveConfig() {
+        const config = {
+            token: document.getElementById('notion-token').value,
+            dbId: document.getElementById('db-id').value,
+            key: document.getElementById('amap-key').value,
+            sec: document.getElementById('amap-security').value
+        };
+        localStorage.setItem('map_config', JSON.stringify(config));
+        location.reload();
     }
-  }
-}
 
-async function fetchAllPages(useSecondary = false) {
-  let results = [], cursor = undefined;
-  do {
-    const body = { page_size: 100 };
-    if (cursor) body.start_cursor = cursor;
-    const data = await notionFetch(`/databases/${CFG.dbid}/query`, 'POST', body, useSecondary);
-    results = results.concat(data.results);
-    cursor = data.has_more ? data.next_cursor : undefined;
-  } while (cursor);
-  return results.map(parsePage).filter(p => p.lat && p.lng);
-}
+    // 2. 初始化加载
+    window.onload = function() {
+        const cfg = JSON.parse(localStorage.getItem('map_config'));
+        if (cfg && cfg.key) {
+            document.getElementById('config-modal').style.display = 'none';
+            window._AMapSecurityConfig.securityJsCode = cfg.sec;
+            
+            const script = document.createElement('script');
+            script.src = `https://webapi.amap.com/maps?v=2.0&key=${cfg.key}&plugin=AMap.Driving,AMap.Transfer,AMap.Walking`;
+            script.onload = initMap;
+            document.head.appendChild(script);
+        }
+    };
 
-function parsePage(page) {
-  const p = page.properties;
-  const get = (key, type) => {
-    if (!p[key]) return '';
-    const prop = p[key];
-    if (type === 'title')     return prop.title?.[0]?.plain_text || '';
-    if (type === 'text')      return prop.rich_text?.[0]?.plain_text || '';
-    if (type === 'select')    return prop.select?.name || '';
-    if (type === 'number')    return prop.number ?? '';
-    if (type === 'url')       return prop.url || '';
-    return '';
-  };
-  const latlng = get('经纬度', 'text');
-  const [latStr, lngStr] = latlng.split(',').map(s => s.trim());
-  const lat = parseFloat(latStr);
-  const lng = parseFloat(lngStr);
-  return {
-    id:       page.id,
-    name:     get('地点名', 'title'),
-    address:  get('地址', 'text'),
-    latlng,
-    lat:      isNaN(lat) ? null : lat,
-    lng:      isNaN(lng) ? null : lng,
-    category: get('分类', 'select'),
-    day:      get('行程日', 'select'),
-    order:    get('当日顺序', 'number'),
-    url:      get('Google Maps URL', 'url'),
-  };
-}
-
-// ═══════════════════════════════════════════════
-// 侧边栏渲染
-// ═══════════════════════════════════════════════
-function renderSidebar() {
-  const content = document.getElementById('sidebar-content');
-  if (!allPlaces.length) {
-    content.innerHTML = '<div id="sidebar-empty">暂无地点数据<br>请先用 Tampermonkey 脚本添加地点</div>';
-    return;
-  }
-
-  // 按天分组，每天内按顺序排序
-  const groups = {};
-  allPlaces.forEach(p => {
-    const day = p.day || '未分组';
-    if (!groups[day]) groups[day] = [];
-    groups[day].push(p);
-  });
-  Object.values(groups).forEach(arr => arr.sort((a, b) => (a.order || 99) - (b.order || 99)));
-
-  const dayOrder = ['Day 1','Day 2','Day 3','Day 4','Day 5','未分组'];
-  const sortedDays = Object.keys(groups).sort((a, b) => {
-    const ia = dayOrder.indexOf(a), ib = dayOrder.indexOf(b);
-    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
-  });
-
-  content.innerHTML = sortedDays.map(day => {
-    const color = DAY_COLORS[day] || '#80868b';
-    const items = groups[day].map(p => `
-      <div class="place-item" onclick="focusPlace('${p.id}')" id="item-${p.id}">
-        <div class="place-num" style="background:${color}22;color:${color}">${p.order || '—'}</div>
-        <div>
-          <div class="place-name">${escHtml(p.name)} ${CAT_EMOJI[p.category] || ''}</div>
-          ${p.address ? `<div class="place-cat">${escHtml(p.address)}</div>` : ''}
-        </div>
-      </div>`).join('');
-    return `
-      <div class="day-group">
-        <div class="day-label">
-          <div class="day-dot" style="background:${color}"></div>
-          ${day}
-        </div>
-        ${items}
-      </div>`;
-  }).join('');
-}
-
-// ═══════════════════════════════════════════════
-// 地图渲染
-// ═══════════════════════════════════════════════
-function renderMap() {
-  // 清除旧 markers 和连线
-  Object.values(markers).forEach(m => m.setMap(null));
-  polylines.forEach(p => p.setMap(null));
-  midpointMarkers.forEach(m => m.setMap(null));
-  markers = {}; polylines = []; midpointMarkers = [];
-
-  if (!allPlaces.length) return;
-
-  const bounds = new google.maps.LatLngBounds();
-
-  // 画 markers
-  allPlaces.forEach(p => {
-    const color = DAY_COLORS[p.day] || '#80868b';
-    const emoji = CAT_EMOJI[p.category] || '📍';
-    const pos = { lat: p.lat, lng: p.lng };
-
-    const marker = new google.maps.Marker({
-      position: pos,
-      map,
-      title: p.name,
-      label: {
-        text: (p.order || '').toString(),
-        color: '#fff',
-        fontSize: '11px',
-        fontWeight: '600',
-      },
-      icon: {
-        path: google.maps.SymbolPath.CIRCLE,
-        scale: 14,
-        fillColor: color,
-        fillOpacity: 1,
-        strokeColor: '#fff',
-        strokeWeight: 2,
-      },
-    });
-
-    const infoWin = new google.maps.InfoWindow({
-      content: `
-        <div style="font-family:'Google Sans',sans-serif;padding:4px 2px;min-width:160px">
-          <div style="font-size:14px;font-weight:600;color:#202124;margin-bottom:4px">${emoji} ${escHtml(p.name)}</div>
-          ${p.day ? `<div style="font-size:12px;color:#1a73e8;margin-bottom:2px">${p.day}${p.order ? ' · 第'+p.order+'站' : ''}</div>` : ''}
-          ${p.category ? `<div style="font-size:12px;color:#5f6368;margin-bottom:2px">${p.category}</div>` : ''}
-          ${p.address ? `<div style="font-size:12px;color:#80868b">${escHtml(p.address)}</div>` : ''}
-          ${p.url ? `<div style="margin-top:6px"><a href="${p.url}" target="_blank" style="font-size:12px;color:#1a73e8">在 Google Maps 打开 ↗</a></div>` : ''}
-        </div>`
-    });
-
-    marker.addListener('click', () => {
-      infoWin.open(map, marker);
-      highlightSidebarItem(p.id);
-    });
-
-    markers[p.id] = marker;
-    bounds.extend(pos);
-  });
-
-  // 画连线
-  const groups = {};
-  allPlaces.forEach(p => {
-    const day = p.day;
-    if (!day || day === '未分组') return;
-    if (!groups[day]) groups[day] = [];
-    groups[day].push(p);
-  });
-  Object.values(groups).forEach(arr => arr.sort((a, b) => (a.order || 99) - (b.order || 99)));
-
-  Object.entries(groups).forEach(([day, places]) => {
-    const color = DAY_COLORS[day] || '#80868b';
-    for (let i = 0; i < places.length - 1; i++) {
-      const from = places[i], to = places[i + 1];
-      const path = [
-        { lat: from.lat, lng: from.lng },
-        { lat: to.lat,   lng: to.lng   },
-      ];
-      const poly = new google.maps.Polyline({
-        path, map,
-        strokeColor: color,
-        strokeOpacity: 0.8,
-        strokeWeight: 3,
-        icons: [{
-          icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3, strokeColor: color },
-          offset: '50%',
-        }],
-      });
-      polylines.push(poly);
-
-      // 中点可点击标记
-      const midLat = (from.lat + to.lat) / 2;
-      const midLng = (from.lng + to.lng) / 2;
-      const midMarker = new google.maps.Marker({
-        position: { lat: midLat, lng: midLng },
-        map,
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 8,
-          fillColor: '#fff',
-          fillOpacity: 1,
-          strokeColor: color,
-          strokeWeight: 2,
-        },
-        title: `${from.name} → ${to.name}`,
-      });
-      midpointMarkers.push(midMarker);
-
-      const fromRef = from, toRef = to;
-      const clickHandler = () => openRoutePanel(fromRef, toRef);
-      poly.addListener('click', clickHandler);
-      midMarker.addListener('click', clickHandler);
+    function initMap() {
+        map = new AMap.Map('container', { zoom: 11, viewMode: '3D' });
+        fetchNotionData();
     }
-  });
 
-  map.fitBounds(bounds);
-}
-
-// ═══════════════════════════════════════════════
-// 路程面板
-// ═══════════════════════════════════════════════
-function openRoutePanel(from, to) {
-  routeState.fromId   = from.id;
-  routeState.toId     = to.id;
-  routeState.fromName = from.name;
-  routeState.toName   = to.name;
-  routeState.fromLat  = from.lat;
-  routeState.fromLng  = from.lng;
-  routeState.toLat    = to.lat;
-  routeState.toLng    = to.lng;
-  routeState.distText = '';
-  routeState.timeText = '';
-
-  document.getElementById('route-title').textContent = `${from.name}  →  ${to.name}`;
-  document.getElementById('route-result').textContent = '选择交通方式后自动计算';
-  document.getElementById('route-update-btn').style.display = 'none';
-  document.getElementById('route-update-btn').textContent = '更新到 Notion';
-  document.getElementById('route-update-btn').className = '';
-
-  // 重置按钮选中状态
-  document.querySelectorAll('.route-mode-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector('.route-mode-btn').classList.add('active');
-  routeState.mode = 'DRIVING';
-
-  document.getElementById('route-panel').classList.remove('hidden');
-  calcRoute();
-}
-
-function closeRoutePanel() {
-  document.getElementById('route-panel').classList.add('hidden');
-}
-
-function selectMode(btn, mode) {
-  document.querySelectorAll('.route-mode-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  routeState.mode = mode;
-  calcRoute();
-}
-
-function calcRoute() {
-  if (!directionsService) return;
-  document.getElementById('route-result').textContent = '计算中...';
-  document.getElementById('route-update-btn').style.display = 'none';
-
-  directionsService.route({
-    origin:      { lat: routeState.fromLat, lng: routeState.fromLng },
-    destination: { lat: routeState.toLat,   lng: routeState.toLng   },
-    travelMode:  google.maps.TravelMode[routeState.mode],
-  }, (result, status) => {
-    if (status === 'OK') {
-      const leg = result.routes[0].legs[0];
-      routeState.distText = leg.distance.text;
-      routeState.timeText = leg.duration.text;
-      document.getElementById('route-result').innerHTML =
-        `<strong>${leg.duration.text}</strong> · ${leg.distance.text}`;
-      document.getElementById('route-update-btn').style.display = 'block';
-    } else {
-      document.getElementById('route-result').textContent = '计算失败：' + status;
+    // 3. 核心：从 Notion 获取数据 (使用代理)
+    async function fetchNotionData() {
+        const cfg = JSON.parse(localStorage.getItem('map_config'));
+        const proxy = "https://cors-proxy.fringe.zone/https://api.notion.com/v1/databases/" + cfg.dbId + "/query";
+        
+        try {
+            const res = await fetch(proxy, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${cfg.token}`,
+                    'Notion-Version': '2022-06-28',
+                    'Content-Type': 'application/json'
+                }
+            });
+            const data = await res.json();
+            renderData(data.results);
+        } catch (e) {
+            alert("数据加载失败，请检查配置或代理状态");
+        }
     }
-  });
-}
 
-async function updateNotion() {
-  const btn = document.getElementById('route-update-btn');
-  btn.textContent = '更新中...';
-  btn.disabled = true;
+    // 4. 渲染 Marker 和 连线
+    function renderData(results) {
+        // 清理旧内容
+        map.remove(markers);
+        map.remove(polylines);
+        markers = []; polylines = [];
 
-  const modeMap = { DRIVING: '驾车', TRANSIT: '公共交通', WALKING: '步行' };
-  const 耗时 = `${routeState.timeText} / ${routeState.distText}`;
-  const 方式 = modeMap[routeState.mode] || '驾车';
+        const pois = results.map(page => {
+            const p = page.properties;
+            return {
+                id: page.id,
+                name: p['地点名']?.title[0]?.plain_text || '无名',
+                day: p['行程日']?.select?.name || '未安排',
+                order: p['当日顺序']?.number || 0,
+                latlng: p['经纬度']?.rich_text[0]?.plain_text || '',
+                cat: p['分类']?.select?.name || '其他'
+            };
+        }).filter(item => item.latlng.includes(','));
 
-  try {
-    await notionFetch(`/pages/${routeState.fromId}`, 'PATCH', {
-      properties: {
-        '交通耗时': { rich_text: [{ text: { content: 耗时 } }] },
-        '交通方式': { select: { name: 方式 } },
-      }
-    });
-    btn.textContent = '✓ 已更新';
-    btn.className = 'success';
-    btn.disabled = false;
-    // 更新本地数据
-    const place = allPlaces.find(p => p.id === routeState.fromId);
-    if (place) { place.travelTime = 耗时; place.travelMode = 方式; }
-  } catch (e) {
-    btn.textContent = '更新失败：' + e.message;
-    btn.disabled = false;
-  }
-}
+        // 按天分组渲染
+        const days = {};
+        pois.forEach(p => {
+            if(!days[p.day]) days[p.day] = [];
+            days[p.day].push(p);
+        });
 
-// ═══════════════════════════════════════════════
-// 侧边栏联动
-// ═══════════════════════════════════════════════
-function focusPlace(id) {
-  const place = allPlaces.find(p => p.id === id);
-  if (!place || !markers[id]) return;
-  map.panTo({ lat: place.lat, lng: place.lng });
-  map.setZoom(15);
-  google.maps.event.trigger(markers[id], 'click');
-  highlightSidebarItem(id);
-}
+        const listHtml = [];
+        Object.keys(days).sort().forEach(day => {
+            const color = DAY_COLORS[day] || '#999';
+            days[day].sort((a,b) => a.order - b.order);
+            
+            listHtml.push(`<div class="day-section"><div class="day-title">${day}</div>`);
+            
+            const path = [];
+            days[day].forEach((p, idx) => {
+                const [lat, lng] = p.latlng.split(',').map(Number);
+                path.push([lng, lat]);
 
-function highlightSidebarItem(id) {
-  document.querySelectorAll('.place-item').forEach(el => el.classList.remove('active'));
-  const el = document.getElementById('item-' + id);
-  if (el) { el.classList.add('active'); el.scrollIntoView({ block: 'nearest' }); }
-}
+                // 创建 Marker
+                const marker = new AMap.Marker({
+                    position: [lng, lat],
+                    content: `<div style="text-align:center"><div style="font-size:20px">${EMOJIS[p.cat]||'📍'}</div><div style="background:${color}; color:white; font-size:10px; border-radius:4px; padding:2px 5px">${p.name}</div></div>`,
+                    extData: p,
+                    map: map
+                });
+                markers.push(marker);
 
-// ═══════════════════════════════════════════════
-// 工具
-// ═══════════════════════════════════════════════
-function showLoading(msg, autoHide = true) {
-  const el = document.getElementById('loading');
-  el.textContent = msg;
-  el.classList.remove('hidden');
-  if (autoHide) setTimeout(hideLoading, 3000);
-}
-function hideLoading() {
-  document.getElementById('loading').classList.add('hidden');
-}
-function escHtml(s) {
-  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
+                listHtml.push(`
+                    <div class="poi-card" onclick="focusPOI(${lng}, ${lat})">
+                        <div class="poi-order" style="background:${color}">${p.order}</div>
+                        <div>
+                            <div style="font-weight:bold; font-size:14px">${p.name}</div>
+                            <div style="font-size:11px; color:#999">${p.cat}</div>
+                        </div>
+                    </div>
+                `);
+            });
+            listHtml.push(`</div>`);
 
-// ═══════════════════════════════════════════════
-// 启动
-// ═══════════════════════════════════════════════
-loadConfig();
-if (CFG.token && CFG.dbid && CFG.mapkey) {
-  document.getElementById('settings-overlay').classList.add('hidden');
-  initMap();
-} else {
-  // 首次使用，显示设置
-  document.getElementById('settings-cancel').style.display = 'none';
-}
+            // 连线
+            if(path.length > 1) {
+                const line = new AMap.Polyline({
+                    path: path, strokeColor: color, strokeWeight: 6, strokeOpacity: 0.8,
+                    lineJoin: 'round', cursor: 'pointer', map: map
+                });
+                line.on('click', (e) => showRouteTool(days[day], e));
+                polylines.push(line);
+            }
+        });
+        document.getElementById('poi-list').innerHTML = listHtml.join('');
+        map.setFitView();
+    }
+
+    function focusPOI(lng, lat) {
+        map.setZoomAndCenter(15, [lng, lat]);
+    }
+
+    // 5. 路线规划与同步功能
+    let currentRoutePair = null;
+    function showRouteTool(dayPois, e) {
+        // 找到点击位置最近的两个点
+        const panel = document.getElementById('route-panel');
+        panel.style.display = 'block';
+        
+        // 演示逻辑：默认取该天第一对（实际应用中可根据点击位置细化）
+        const start = dayPois[0];
+        const end = dayPois[1];
+        currentRoutePair = { start, end };
+        
+        document.getElementById('route-info').innerText = `${start.name} ➔ ${end.name}`;
+        calculateRoute();
+    }
+
+    async function calculateRoute() {
+        const mode = document.getElementById('mode-select').value;
+        const { start, end } = currentRoutePair;
+        const [sLat, sLng] = start.latlng.split(',').map(Number);
+        const [eLat, eLng] = end.latlng.split(',').map(Number);
+
+        let service;
+        if(mode === 'driving') service = new AMap.Driving();
+        else if(mode === 'transfer') service = new AMap.Transfer({ city: '全国' });
+        else service = new AMap.Walking();
+
+        service.search([sLng, sLat], [eLng, eLat], (status, result) => {
+            if(status === 'complete') {
+                const route = result.routes[0];
+                const dist = (route.distance/1000).toFixed(1);
+                const time = Math.round(route.time / 60);
+                const infoStr = `${time} min / ${dist} km`;
+                document.getElementById('route-detail').innerText = infoStr;
+                
+                document.getElementById('sync-notion-btn').onclick = () => syncToNotion(start.id, infoStr, mode);
+            }
+        });
+    }
+
+    async function syncToNotion(pageId, info, mode) {
+        const cfg = JSON.parse(localStorage.getItem('map_config'));
+        const modeNames = { driving: '驾车', transfer: '公共交通', walking: '步行' };
+        const btn = document.getElementById('sync-notion-btn');
+        btn.innerText = "同步中...";
+
+        try {
+            await fetch(`https://cors-proxy.fringe.zone/https://api.notion.com/v1/pages/${pageId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${cfg.token}`,
+                    'Notion-Version': '2022-06-28',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    properties: {
+                        '交通耗时': { rich_text: [{ text: { content: info } }] },
+                        '交通方式': { select: { name: modeNames[mode] } }
+                    }
+                })
+            });
+            btn.innerText = "✅ 已更新";
+            setTimeout(() => { document.getElementById('route-panel').style.display='none'; }, 1000);
+        } catch (e) {
+            alert("同步失败");
+            btn.innerText = "重试";
+        }
+    }
 </script>
-
-<!-- Cloudflare Worker 备用代理方案（若主代理不稳定）
-===================================================
-1. 打开 https://workers.cloudflare.com/ 注册免费账号
-2. 新建 Worker，粘贴以下代码，保存部署：
-
-export default {
-  async fetch(request) {
-    const url = new URL(request.url);
-    const target = url.searchParams.get('url') || url.pathname.slice(1);
-    if (!target.startsWith('https://api.notion.com')) {
-      return new Response('Forbidden', { status: 403 });
-    }
-    const headers = new Headers(request.headers);
-    headers.delete('origin');
-    headers.delete('referer');
-    const res = await fetch(target, { method: request.method, headers, body: request.body });
-    const newRes = new Response(res.body, res);
-    newRes.headers.set('Access-Control-Allow-Origin', '*');
-    newRes.headers.set('Access-Control-Allow-Headers', '*');
-    newRes.headers.set('Access-Control-Allow-Methods', '*');
-    return newRes;
-  }
-}
-
-3. 把 Worker 的 URL（如 https://my-proxy.xxx.workers.dev/）
-   替换代码顶部的 PROXY_PRIMARY 变量即可。
-=================================================== -->
-
 </body>
 </html>
