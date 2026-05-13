@@ -81,7 +81,7 @@
             document.getElementById('config-modal').style.display = 'none';
             window._AMapSecurityConfig.securityJsCode = cfg.sec;
             const script = document.createElement('script');
-            script.src = `https://webapi.amap.com/maps?v=2.0&key=${cfg.key}`;
+            script.src = `https://webapi.amap.com/maps?v=2.0&key=${cfg.key}&viewMode=3D&worldVector=true`;
             script.onload = () => {
                 map = new AMap.Map('container', { zoom: 11, viewMode: '3D' });
                 fetchNotionData();
