@@ -2,43 +2,46 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>🗺️ 槟城旅行地图 - 真实交通闭环版</title>
+    <title>🗺️ 槟城旅行地图 - 终极修复版</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <style>
         :root { --primary:#1a73e8; --sidebar:320px; }
         *{ box-sizing:border-box; margin:0; padding:0; }
-        body,html{ height:100%; font-family: sans-serif; overflow:hidden; }
+        body,html{ height:100%; font-family: sans-serif; overflow:hidden; background:#f0f2f5; }
         #app{ display:flex; height:100vh; }
-        #sidebar{ width:var(--sidebar); background:#fff; border-right:1px solid #eee; display:flex; flex-direction:column; z-index:10; }
+        #sidebar{ width:var(--sidebar); background:#fff; border-right:1px solid #eee; display:flex; flex-direction:column; z-index:10; box-shadow: 2px 0 10px rgba(0,0,0,0.05); }
         #map{ flex:1; z-index:1; }
-        #cfg-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:999999; display:flex; align-items:center; justify-content:center; }
+        #cfg-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:999999; display:flex; align-items:center; justify-content:center; }
         #cfg-overlay.hidden { display:none !important; }
         .cfg-box { background:#fff; padding:30px; border-radius:20px; width:360px; text-align:center; }
-        .cfg-input { width:100%; margin-bottom:15px; padding:12px; border:1px solid #ddd; border-radius:10px; }
-        #topbar{ padding:15px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; background:#f8f9fa; }
+        .cfg-input { width:100%; margin-bottom:15px; padding:12px; border:1px solid #ddd; border-radius:10px; font-size:14px; }
+        #topbar{ padding:15px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; background:#fff; }
         #poi-list{ flex:1; overflow-y:auto; padding:10px; }
-        .day-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding:5px; border-bottom:1px solid #eee; }
-        .optimize-btn { background:var(--primary); color:#fff; border:none; padding:6px 15px; border-radius:20px; cursor:pointer; font-weight:bold; font-size:12px; }
-        .poi-card { display:flex; align-items:center; gap:12px; padding:12px; border-radius:12px; cursor:pointer; border:2px solid transparent; margin-bottom:8px; background:#fff; box-shadow:0 2px 4px rgba(0,0,0,0.05); }
+        .day-header { display:flex; justify-content:space-between; align-items:center; margin:15px 0 10px; padding:0 5px; }
+        .optimize-btn { background:var(--primary); color:#fff; border:none; padding:6px 12px; border-radius:20px; cursor:pointer; font-weight:bold; font-size:11px; }
+        .poi-card { display:flex; align-items:center; gap:12px; padding:12px; border-radius:12px; cursor:pointer; border:2px solid transparent; margin-bottom:8px; background:#fff; box-shadow:0 2px 5px rgba(0,0,0,0.05); transition: 0.2s; }
         .poi-card.picked-start { border-color:#34a853 !important; background:#e6f4ea !important; }
         .poi-card.picked-end { border-color:#ea4335 !important; background:#fce8e6 !important; }
         .poi-num { width:24px; height:24px; border-radius:50%; background:var(--primary); color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:bold; flex-shrink:0; }
-        .poi-name { font-size:14px; font-weight:600; }
-        #toast { position:fixed; top:30px; left:50%; transform:translateX(-50%); background:#333; color:#fff; padding:12px 25px; border-radius:30px; z-index:1000000; display:none; }
+        .poi-name { font-size:14px; font-weight:600; color:#333; }
+        #toast { position:fixed; top:30px; left:50%; transform:translateX(-50%); background:#333; color:#fff; padding:12px 25px; border-radius:30px; z-index:1000000; display:none; font-weight:bold; box-shadow:0 10px 30px rgba(0,0,0,0.2); }
     </style>
 </head>
 <body>
     <div id="toast"></div>
     <div id="cfg-overlay">
         <div class="cfg-box">
-            <h2 style="margin-bottom:20px">⚙️ 配置 Notion</h2>
+            <h2 style="margin-bottom:20px">⚙️ 配置 Notion 数据</h2>
             <input id="cfg-token" class="cfg-input" type="password" placeholder="Notion Token">
             <input id="cfg-dbid" class="cfg-input" placeholder="Database ID">
-            <button onclick="saveConfig()" style="width:100%; padding:15px; background:var(--primary); color:#fff; border:none; border-radius:10px; cursor:pointer; font-weight:bold;">同步并加载</button>
+            <button onclick="saveConfig()" style="width:100%; padding:15px; background:var(--primary); color:#fff; border:none; border-radius:10px; cursor:pointer; font-weight:bold;">保存并开始同步</button>
         </div>
     </div>
     <div id="app">
-        <div id="sidebar"><div id="topbar"><b>我的行程</b><button onclick="loadData()">刷新</button></div><div id="poi-list"></div></div>
+        <div id="sidebar">
+            <div id="topbar"><b>我的行程助手</b><button onclick="loadData()" style="cursor:pointer; padding:5px 10px; border-radius:5px; border:1px solid #ddd; background:#fff;">刷新地图</button></div>
+            <div id="poi-list"></div>
+        </div>
         <div id="map"></div>
     </div>
 
@@ -57,7 +60,11 @@
         function saveConfig() {
             const token = document.getElementById('cfg-token').value.trim();
             const dbid = document.getElementById('cfg-dbid').value.trim();
-            if (token && dbid) { localStorage.setItem('ntm_cfg', JSON.stringify({token, dbid})); document.getElementById('cfg-overlay').classList.add('hidden'); loadData(); }
+            if (token && dbid) {
+                localStorage.setItem('ntm_cfg', JSON.stringify({token, dbid}));
+                document.getElementById('cfg-overlay').classList.add('hidden');
+                loadData();
+            }
         }
 
         async function notionReq(path, method='GET', body=null) {
@@ -71,17 +78,21 @@
         }
 
         async function loadData() {
-            showToast("正在拉取数据...");
-            const cfg = JSON.parse(localStorage.getItem('ntm_cfg'));
-            const data = await notionReq(`/databases/${cfg.dbid}/query`, 'POST');
-            if (data && data.results) {
-                allPlaces = data.results.map(page => {
-                    const p = page.properties;
-                    const ll = (p['经纬度']?.rich_text?.[0]?.plain_text || "0,0").split(',');
-                    return { id: page.id, name: p['地点名']?.title?.[0]?.plain_text || '未命名', lat: parseFloat(ll[0]), lng: parseFloat(ll[1]), day: p['行程日']?.select?.name || '未分组', order: p['当日顺序']?.number || 0 };
-                }).filter(p => p.lat !== 0);
-                renderSidebar(); renderMap(); showToast("同步成功", true);
-            }
+            showToast("正在拉取 Notion 数据...");
+            try {
+                const cfg = JSON.parse(localStorage.getItem('ntm_cfg'));
+                const data = await notionReq(`/databases/${cfg.dbid}/query`, 'POST');
+                if (data && data.results) {
+                    allPlaces = data.results.map(page => {
+                        const p = page.properties;
+                        const ll = (p['经纬度']?.rich_text?.[0]?.plain_text || "0,0").split(',');
+                        return { id: page.id, name: p['地点名']?.title?.[0]?.plain_text || '未命名', lat: parseFloat(ll[0]), lng: parseFloat(ll[1]), day: p['行程日']?.select?.name || '未分组', order: p['当日顺序']?.number || 0 };
+                    }).filter(p => !isNaN(p.lat) && p.lat !== 0);
+                    renderSidebar();
+                    await renderMap(); // 这里要等待地图画完
+                    showToast("同步成功", true);
+                }
+            } catch(e) { showToast("加载失败，请检查网络"); }
         }
 
         function renderSidebar() {
@@ -91,14 +102,20 @@
             list.innerHTML = Object.keys(groups).sort().map((day, idx) => {
                 const color = COLORS[idx % COLORS.length];
                 groups[day].sort((a,b) => a.order - b.order);
-                return `<div class="day-section"><div class="day-header"><b style="color:${color}">${day}</b><button class="optimize-btn" onclick="toggleSelectMode('${day}')">重排顺序</button></div>
-                    ${groups[day].map(p => `<div class="poi-card" id="card-${p.id}" onclick="handleCardClick('${p.id}', '${day}')"><div class="poi-num" style="background:${color}">${p.order}</div><div class="poi-name">${p.name}</div></div>`).join('')}</div>`;
+                return `<div class="day-section">
+                    <div class="day-header"><b style="color:${color}">${day}</b><button class="optimize-btn" onclick="toggleSelectMode('${day}')">点选重排</button></div>
+                    ${groups[day].map(p => `
+                        <div class="poi-card" id="card-${p.id}" onclick="handleCardClick('${p.id}', '${day}')">
+                            <div class="poi-num" style="background:${color}">${p.order}</div>
+                            <div class="poi-name">${p.name}</div>
+                        </div>`).join('')}
+                </div>`;
             }).join('');
         }
 
         function toggleSelectMode(day) {
             isSelecting = true; selectionType = 'start';
-            showToast("请点击起点，再点击终点（同点即闭环）");
+            showToast("请点选：1.起点卡片");
         }
 
         function handleCardClick(id, day) {
@@ -107,10 +124,12 @@
                 startPoint = allPlaces.find(x => x.id === id);
                 document.getElementById(`card-${id}`).classList.add('picked-start');
                 selectionType = 'end';
+                showToast("请点选：2.终点卡片 (同点即闭环)");
             } else {
                 endPoint = allPlaces.find(x => x.id === id);
                 document.getElementById(`card-${id}`).classList.add('picked-end');
-                isSelecting = false; runOptimization(day);
+                isSelecting = false;
+                runOptimization(day);
             }
         }
 
@@ -124,7 +143,7 @@
             while (unvisited.length > 0) {
                 let nearestIdx = 0, minDist = Infinity;
                 unvisited.forEach((p, i) => {
-                    let d = Math.sqrt((current.lat-p.lat)**2 + (current.lng-p.lng)**2);
+                    let d = Math.pow(current.lat-p.lat, 2) + Math.pow(current.lng-p.lng, 2);
                     if (d < minDist) { minDist = d; nearestIdx = i; }
                 });
                 current = unvisited.splice(nearestIdx, 1)[0];
@@ -132,13 +151,18 @@
             }
             if (startPoint.id !== endPoint.id) optimized.push(endPoint);
 
-            if (confirm(`规划成功，确定同步到 Notion 吗？`)) {
-                for (let i = 0; i < optimized.length; i++) {
-                    await notionReq(`/pages/${optimized[i].id}`, 'PATCH', { properties: { '当日顺序': { number: i + 1 } } });
-                }
-                loadData();
+            showToast("正在同步到 Notion...");
+            for (let i = 0; i < optimized.length; i++) {
+                // 如果是起终点相同，我们只更新 Notion 里存在的这一行，逻辑上的终点连线在地图端处理
+                await notionReq(`/pages/${optimized[i].id}`, 'PATCH', { properties: { '当日顺序': { number: i + 1 } } });
             }
+            
+            // 重要：为了让地图识别闭环，如果起终点相同，我们在本地数据里记录这个意图
+            if (startPoint.id === endPoint.id) localStorage.setItem('is_loop_' + day, 'true');
+            else localStorage.removeItem('is_loop_' + day);
+
             resetSelectMode();
+            loadData();
         }
 
         function resetSelectMode() {
@@ -146,7 +170,6 @@
             document.querySelectorAll('.poi-card').forEach(el => el.className = 'poi-card');
         }
 
-        // --- 核心：真实道路绘制逻辑 ---
         async function renderMap() {
             polylines.forEach(p => map.removeLayer(p));
             Object.values(markers).forEach(m => map.removeLayer(m));
@@ -159,18 +182,33 @@
                 const color = COLORS[Object.keys(groups).indexOf(day) % COLORS.length];
                 places.sort((a,b) => a.order - b.order);
                 
-                // 1. 画 marker
                 places.forEach(p => {
-                    const icon = L.divIcon({ className: '', html: `<div class="poi-num" style="background:${color};border:2px solid #fff;">${p.order}</div>` });
+                    const icon = L.divIcon({ className: '', html: `<div class="poi-num" style="background:${color};border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,0.2)">${p.order}</div>` });
                     markers[p.id] = L.marker([p.lat, p.lng], {icon}).addTo(map);
                 });
 
-                // 2. 只有多于一个点才画线
                 if (places.length > 1) {
-                    // 构造 OSRM 请求：点1 -> 点2 -> 点3
-                    let coordsStr = places.map(p => `${p.lng},${p.lat}`).join(';');
-                    
-                    // 【关键点】闭环补全：如果逻辑上需要回到起点，在请求末尾再加上起点坐标
-                    // 判断逻辑：如果最后一个点的 order 对应的是闭环需求（这里根据你同步回 Notion 的数据判定）
-                    // 简单粗暴法：如果最后一个点和第一个点是同一个地点，或者你想强制闭环
-                    // 我们
+                    let routePoints = [...places];
+                    // 【关键修复】如果标记为闭环，在请求 OSRM 时强行把起点加在数组最后
+                    if (localStorage.getItem('is_loop_' + day) === 'true') {
+                        routePoints.push(places[0]);
+                    }
+
+                    const coordsStr = routePoints.map(p => `${p.lng},${p.lat}`).join(';');
+                    try {
+                        const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson`);
+                        const data = await res.json();
+                        if (data.routes && data.routes[0]) {
+                            const line = L.geoJSON(data.routes[0].geometry, {style: {color, weight: 6, opacity: 0.8}}).addTo(map);
+                            polylines.push(line);
+                            line.bindPopup(`<b>${day}路线</b><br>距离: ${(data.routes[0].distance/1000).toFixed(1)}km<br>预计时间: ${Math.round(data.routes[0].duration/60)}分钟`);
+                        }
+                    } catch(e) { console.error("道路加载失败"); }
+                }
+            }
+        }
+
+        function showToast(m, h){ const t=document.getElementById('toast'); t.textContent=m; t.style.display='block'; if(h) setTimeout(()=>t.style.display='none', 2000); }
+    </script>
+</body>
+</html>
