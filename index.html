@@ -1,214 +1,478 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <title>🗺️ 槟城旅行地图 - 终极修复版</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-    <style>
-        :root { --primary:#1a73e8; --sidebar:320px; }
-        *{ box-sizing:border-box; margin:0; padding:0; }
-        body,html{ height:100%; font-family: sans-serif; overflow:hidden; background:#f0f2f5; }
-        #app{ display:flex; height:100vh; }
-        #sidebar{ width:var(--sidebar); background:#fff; border-right:1px solid #eee; display:flex; flex-direction:column; z-index:10; box-shadow: 2px 0 10px rgba(0,0,0,0.05); }
-        #map{ flex:1; z-index:1; }
-        #cfg-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:999999; display:flex; align-items:center; justify-content:center; }
-        #cfg-overlay.hidden { display:none !important; }
-        .cfg-box { background:#fff; padding:30px; border-radius:20px; width:360px; text-align:center; }
-        .cfg-input { width:100%; margin-bottom:15px; padding:12px; border:1px solid #ddd; border-radius:10px; font-size:14px; }
-        #topbar{ padding:15px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; background:#fff; }
-        #poi-list{ flex:1; overflow-y:auto; padding:10px; }
-        .day-header { display:flex; justify-content:space-between; align-items:center; margin:15px 0 10px; padding:0 5px; }
-        .optimize-btn { background:var(--primary); color:#fff; border:none; padding:6px 12px; border-radius:20px; cursor:pointer; font-weight:bold; font-size:11px; }
-        .poi-card { display:flex; align-items:center; gap:12px; padding:12px; border-radius:12px; cursor:pointer; border:2px solid transparent; margin-bottom:8px; background:#fff; box-shadow:0 2px 5px rgba(0,0,0,0.05); transition: 0.2s; }
-        .poi-card.picked-start { border-color:#34a853 !important; background:#e6f4ea !important; }
-        .poi-card.picked-end { border-color:#ea4335 !important; background:#fce8e6 !important; }
-        .poi-num { width:24px; height:24px; border-radius:50%; background:var(--primary); color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:bold; flex-shrink:0; }
-        .poi-name { font-size:14px; font-weight:600; color:#333; }
-        #toast { position:fixed; top:30px; left:50%; transform:translateX(-50%); background:#333; color:#fff; padding:12px 25px; border-radius:30px; z-index:1000000; display:none; font-weight:bold; box-shadow:0 10px 30px rgba(0,0,0,0.2); }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🗺 旅行地图</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+:root { --primary:#1a73e8; --sidebar:300px; }
+*{ box-sizing:border-box; margin:0; padding:0; }
+body,html{ height:100%; font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif; overflow:hidden; }
+
+/* ── 布局 ── */
+#app{ display:flex; height:100vh; }
+#sidebar{
+  width:var(--sidebar); background:#fff; border-right:1px solid #eee;
+  display:flex; flex-direction:column; z-index:10; flex-shrink:0;
+}
+#map-wrap{ flex:1; position:relative; }
+#map{ width:100%; height:100%; }
+
+/* ── 顶栏 ── */
+#topbar{
+  padding:14px 16px 10px; border-bottom:1px solid #eee;
+  display:flex; align-items:center; justify-content:space-between;
+}
+#topbar h1{ font-size:15px; font-weight:700; color:#202124; }
+.icon-btn{
+  background:none; border:1px solid #e0e0e0; border-radius:8px;
+  padding:5px 10px; font-size:12px; cursor:pointer; color:#5f6368;
+  display:flex; align-items:center; gap:4px; transition:background .15s;
+}
+.icon-btn:hover{ background:#f1f3f4; }
+
+/* ── 地点列表 ── */
+#poi-list{ flex:1; overflow-y:auto; padding:10px 8px; }
+.day-section{ margin-bottom:12px; }
+.day-header{
+  display:flex; align-items:center; gap:8px;
+  padding:6px 8px; margin-bottom:4px;
+}
+.day-dot{ width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.day-label{ font-size:11px; font-weight:700; color:#5f6368; text-transform:uppercase; letter-spacing:.06em; }
+.poi-card{
+  display:flex; align-items:flex-start; gap:10px;
+  padding:10px 10px; border-radius:10px; cursor:pointer;
+  transition:background .12s; margin-bottom:2px;
+}
+.poi-card:hover{ background:#f0f7ff; }
+.poi-card.active{ background:#e8f0fe; }
+.poi-num{
+  width:22px; height:22px; border-radius:50%; flex-shrink:0;
+  font-size:11px; font-weight:700; color:#fff;
+  display:flex; align-items:center; justify-content:center; margin-top:1px;
+}
+.poi-name{ font-size:13px; font-weight:600; color:#202124; line-height:1.3; }
+.poi-meta{ font-size:11px; color:#80868b; margin-top:2px; line-height:1.5; }
+
+/* ── 路程面板 ── */
+#route-panel{
+  position:absolute; bottom:20px; right:20px; width:300px;
+  background:#fff; border-radius:16px; padding:16px 18px;
+  box-shadow:0 4px 24px rgba(0,0,0,.14);
+  border:1px solid #e8e8e8; z-index:500;
+  display:none;
+}
+#route-close{
+  position:absolute; top:10px; right:12px;
+  background:none; border:none; font-size:16px; cursor:pointer; color:#999;
+}
+#route-from-to{ font-size:13px; font-weight:600; color:#202124; margin-bottom:10px; line-height:1.4; }
+.mode-btns{ display:flex; gap:6px; margin-bottom:10px; }
+.mode-btn{
+  flex:1; padding:6px 4px; border:1.5px solid #e0e0e0; border-radius:8px;
+  background:#fff; cursor:pointer; font-size:12px; font-weight:500; text-align:center;
+  transition:all .15s;
+}
+.mode-btn.on{ background:#e8f0fe; border-color:var(--primary); color:var(--primary); }
+#route-result{ font-size:13px; color:#202124; min-height:32px; margin-bottom:10px; line-height:1.6; }
+#route-save-btn{
+  width:100%; padding:9px; background:var(--primary); color:#fff;
+  border:none; border-radius:9px; font-size:13px; font-weight:600; cursor:pointer;
+  display:none; transition:background .15s;
+}
+#route-save-btn:hover{ background:#1557b0; }
+#route-save-btn.ok{ background:#137333; }
+
+/* ── 配置弹窗 ── */
+#cfg-overlay{
+  position:fixed; inset:0; background:rgba(0,0,0,.5);
+  z-index:9999; display:flex; align-items:center; justify-content:center;
+}
+#cfg-overlay.hidden{ display:none; }
+#cfg-box{
+  background:#fff; border-radius:20px; padding:26px 28px; width:360px; max-width:95vw;
+  box-shadow:0 12px 48px rgba(0,0,0,.2);
+}
+#cfg-box h2{ font-size:17px; font-weight:700; margin-bottom:6px; }
+#cfg-box p{ font-size:12px; color:#80868b; margin-bottom:18px; }
+.cfg-field{ margin-bottom:14px; }
+.cfg-field label{ display:block; font-size:11px; font-weight:600; color:#5f6368; margin-bottom:4px; text-transform:uppercase; letter-spacing:.04em; }
+.cfg-field input{
+  width:100%; padding:9px 12px; border:1.5px solid #e0e0e0; border-radius:9px;
+  font-size:13px; outline:none; transition:border-color .15s;
+}
+.cfg-field input:focus{ border-color:var(--primary); }
+.cfg-field .hint{ font-size:11px; color:#aaa; margin-top:3px; }
+#cfg-save{
+  width:100%; padding:11px; background:var(--primary); color:#fff;
+  border:none; border-radius:10px; font-size:14px; font-weight:600; cursor:pointer; margin-top:4px;
+}
+#cfg-save:hover{ background:#1557b0; }
+#cfg-cancel{ width:100%; padding:8px; background:none; border:none; color:#80868b; font-size:13px; cursor:pointer; margin-top:6px; }
+
+/* ── 加载提示 ── */
+#toast{
+  position:fixed; top:60px; left:50%; transform:translateX(-50%);
+  background:#202124; color:#fff; padding:8px 18px; border-radius:20px;
+  font-size:13px; z-index:600; opacity:0; pointer-events:none; transition:opacity .25s;
+}
+#toast.show{ opacity:1; }
+
+@media(max-width:640px){
+  #sidebar{ width:100%; height:40vh; border-right:none; border-bottom:1px solid #eee; }
+  #app{ flex-direction:column; }
+  #route-panel{ left:10px; right:10px; width:auto; bottom:10px; }
+}
+</style>
 </head>
 <body>
-    <div id="toast"></div>
-    <div id="cfg-overlay">
-        <div class="cfg-box">
-            <h2 style="margin-bottom:20px">⚙️ 配置 Notion 数据</h2>
-            <input id="cfg-token" class="cfg-input" type="password" placeholder="Notion Token">
-            <input id="cfg-dbid" class="cfg-input" placeholder="Database ID">
-            <button onclick="saveConfig()" style="width:100%; padding:15px; background:var(--primary); color:#fff; border:none; border-radius:10px; cursor:pointer; font-weight:bold;">保存并开始同步</button>
-        </div>
-    </div>
-    <div id="app">
-        <div id="sidebar">
-            <div id="topbar"><b>我的行程助手</b><button onclick="loadData()" style="cursor:pointer; padding:5px 10px; border-radius:5px; border:1px solid #ddd; background:#fff;">刷新地图</button></div>
-            <div id="poi-list"></div>
-        </div>
-        <div id="map"></div>
-    </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-        let map, allPlaces = [], markers = {}, polylines = [];
-        let isSelecting = false, selectionType = 'start', startPoint = null, endPoint = null;
-        const COLORS = ['#4285F4', '#34A853', '#FBBC05', '#EA4335', '#8E24AA'];
+<div id="toast"></div>
 
-        window.onload = () => {
-            map = L.map('map', { zoomControl: false }).setView([5.42, 100.33], 13);
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(map);
-            if (localStorage.getItem('ntm_cfg')) { document.getElementById('cfg-overlay').classList.add('hidden'); loadData(); }
-        };
+<div id="cfg-overlay">
+  <div id="cfg-box">
+    <h2>⚙️ 配置 Notion</h2>
+    <p>配置仅保存在本地浏览器，不会上传到任何地方</p>
+    <div class="cfg-field">
+      <label>Notion Token</label>
+      <input id="cfg-token" type="password" placeholder="ntn_xxxxxxxxxx"/>
+    </div>
+    <div class="cfg-field">
+      <label>Database ID</label>
+      <input id="cfg-dbid" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"/>
+      <div class="hint">数据库 URL 中 ?v= 前面那段（不需要加横杠）</div>
+    </div>
+    <button id="cfg-save" onclick="saveConfig()">保存并加载地图</button>
+    <button id="cfg-cancel" onclick="cancelConfig()">取消</button>
+  </div>
+</div>
 
-        function saveConfig() {
-            const token = document.getElementById('cfg-token').value.trim();
-            const dbid = document.getElementById('cfg-dbid').value.trim();
-            if (token && dbid) {
-                localStorage.setItem('ntm_cfg', JSON.stringify({token, dbid}));
-                document.getElementById('cfg-overlay').classList.add('hidden');
-                loadData();
-            }
-        }
+<div id="app">
+  <div id="sidebar">
+    <div id="topbar">
+      <h1>🗺 旅行地图</h1>
+      <div style="display:flex;gap:6px">
+        <button class="icon-btn" onclick="loadData()">🔄 刷新</button>
+        <button class="icon-btn" onclick="openConfig()">⚙️</button>
+      </div>
+    </div>
+    <div id="poi-list"><p style="padding:20px;color:#aaa;font-size:13px;text-align:center">加载中...</p></div>
+  </div>
+  <div id="map-wrap">
+    <div id="map"></div>
+    <div id="route-panel">
+      <button id="route-close" onclick="closeRoute()">✕</button>
+      <div id="route-from-to"></div>
+      <div class="mode-btns">
+        <button class="mode-btn on" onclick="setMode(this,'driving')">🚗 驾车</button>
+        <button class="mode-btn"    onclick="setMode(this,'transit')">🚌 公交</button>
+        <button class="mode-btn"    onclick="setMode(this,'walking')">🚶 步行</button>
+      </div>
+      <div id="route-result">计算中...</div>
+      <button id="route-save-btn" onclick="writeRouteToNotion()">更新到 Notion</button>
+    </div>
+  </div>
+</div>
 
-        async function notionReq(path, method='GET', body=null) {
-            const cfg = JSON.parse(localStorage.getItem('ntm_cfg'));
-            const url = `https://corsproxy.io/?${encodeURIComponent('https://api.notion.com/v1' + path)}`;
-            const res = await fetch(url, {
-                method, headers: { 'Authorization': `Bearer ${cfg.token}`, 'Notion-Version': '2022-06-28', 'Content-Type': 'application/json' },
-                body: body ? JSON.stringify(body) : null
-            });
-            return res.json();
-        }
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+let map, allPlaces = [];
+let leafletMarkers = {}, polylines = [], midMarkers = [];
+let route = { from:null, to:null, mode:'driving', dist:'', time:'' };
 
-        async function loadData() {
-            showToast("正在拉取 Notion 数据...");
-            try {
-                const cfg = JSON.parse(localStorage.getItem('ntm_cfg'));
-                const data = await notionReq(`/databases/${cfg.dbid}/query`, 'POST');
-                if (data && data.results) {
-                    allPlaces = data.results.map(page => {
-                        const p = page.properties;
-                        const ll = (p['经纬度']?.rich_text?.[0]?.plain_text || "0,0").split(',');
-                        return { id: page.id, name: p['地点名']?.title?.[0]?.plain_text || '未命名', lat: parseFloat(ll[0]), lng: parseFloat(ll[1]), day: p['行程日']?.select?.name || '未分组', order: p['当日顺序']?.number || 0 };
-                    }).filter(p => !isNaN(p.lat) && p.lat !== 0);
-                    renderSidebar();
-                    await renderMap(); // 这里要等待地图画完
-                    showToast("同步成功", true);
-                }
-            } catch(e) { showToast("加载失败，请检查网络"); }
-        }
+const DAY_COLORS = {
+  'Day 1':'#1a73e8','Day 2':'#34a853','Day 3':'#fa7b17',
+  'Day 4':'#9334e6','Day 5':'#ea4335'
+};
+const CAT_EMOJI = { '餐厅':'🍜','景点':'🗺','酒店':'🏨','交通枢纽':'✈️','购物':'🛍' };
+const PROXIES = [
+  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  url => `https://cors-proxy.fringe.zone/${url}`,
+];
 
-        function renderSidebar() {
-            const groups = {};
-            allPlaces.forEach(p => { if(!groups[p.day]) groups[p.day]=[]; groups[p.day].push(p); });
-            const list = document.getElementById('poi-list');
-            list.innerHTML = Object.keys(groups).sort().map((day, idx) => {
-                const color = COLORS[idx % COLORS.length];
-                groups[day].sort((a,b) => a.order - b.order);
-                return `<div class="day-section">
-                    <div class="day-header"><b style="color:${color}">${day}</b><button class="optimize-btn" onclick="toggleSelectMode('${day}')">点选重排</button></div>
-                    ${groups[day].map(p => `
-                        <div class="poi-card" id="card-${p.id}" onclick="handleCardClick('${p.id}', '${day}')">
-                            <div class="poi-num" style="background:${color}">${p.order}</div>
-                            <div class="poi-name">${p.name}</div>
-                        </div>`).join('')}
-                </div>`;
-            }).join('');
-        }
+window.onload = () => {
+  map = L.map('map', { zoomControl:true }).setView([22, 114], 10);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap © CARTO',
+    subdomains: 'abcd', maxZoom: 19
+  }).addTo(map);
+  const cfg = getConfig();
+  if (!cfg) {
+    document.getElementById('cfg-overlay').classList.remove('hidden');
+    document.getElementById('cfg-cancel').style.display = 'none';
+  } else {
+    document.getElementById('cfg-overlay').classList.add('hidden');
+    loadData();
+  }
+};
 
-        function toggleSelectMode(day) {
-            isSelecting = true; selectionType = 'start';
-            showToast("请点选：1.起点卡片");
-        }
+function getConfig() {
+  try { return JSON.parse(localStorage.getItem('ntm_cfg')); } catch(e) { return null; }
+}
+function openConfig() {
+  const cfg = getConfig() || {};
+  document.getElementById('cfg-token').value = cfg.token || '';
+  document.getElementById('cfg-dbid').value  = cfg.dbid  || '';
+  document.getElementById('cfg-overlay').classList.remove('hidden');
+}
+function cancelConfig() {
+  if (getConfig()) document.getElementById('cfg-overlay').classList.add('hidden');
+}
+function saveConfig() {
+  const token = document.getElementById('cfg-token').value.trim();
+  const dbid  = document.getElementById('cfg-dbid').value.trim().replace(/-/g,'');
+  if (!token || !dbid) { alert('请填写完整'); return; }
+  localStorage.setItem('ntm_cfg', JSON.stringify({ token, dbid }));
+  document.getElementById('cfg-overlay').classList.add('hidden');
+  loadData();
+}
 
-        function handleCardClick(id, day) {
-            if (!isSelecting) { const p = allPlaces.find(x => x.id === id); map.flyTo([p.lat, p.lng], 16); return; }
-            if (selectionType === 'start') {
-                startPoint = allPlaces.find(x => x.id === id);
-                document.getElementById(`card-${id}`).classList.add('picked-start');
-                selectionType = 'end';
-                showToast("请点选：2.终点卡片 (同点即闭环)");
-            } else {
-                endPoint = allPlaces.find(x => x.id === id);
-                document.getElementById(`card-${id}`).classList.add('picked-end');
-                isSelecting = false;
-                runOptimization(day);
-            }
-        }
+async function notionReq(path, method='GET', body=null, proxyIdx=0) {
+  const cfg = getConfig();
+  const baseUrl = 'https://api.notion.com/v1' + path;
+  const proxyUrl = PROXIES[proxyIdx](baseUrl);
+  const opts = {
+    method,
+    headers: {
+      'Authorization': `Bearer ${cfg.token}`,
+      'Notion-Version': '2022-06-28',
+      'Content-Type': 'application/json',
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(proxyUrl, opts);
+  if (!res.ok) {
+    if (proxyIdx < PROXIES.length - 1) return notionReq(path, method, body, proxyIdx + 1);
+    throw new Error(`HTTP ${res.status}`);
+  }
+  return res.json();
+}
 
-        async function runOptimization(day) {
-            const dayPlaces = allPlaces.filter(p => p.day === day);
-            let optimized = [startPoint];
-            let unvisited = dayPlaces.filter(p => p.id !== startPoint.id && (startPoint.id === endPoint.id ? true : p.id !== endPoint.id));
-            if (startPoint.id === endPoint.id) unvisited = dayPlaces.filter(p => p.id !== startPoint.id);
+async function loadData() {
+  showToast('加载数据中...');
+  try {
+    const cfg = getConfig();
+    if (!cfg) { openConfig(); return; }
+    let results = [], cursor;
+    do {
+      const body = { page_size:100 };
+      if (cursor) body.start_cursor = cursor;
+      const data = await notionReq(`/databases/${cfg.dbid}/query`, 'POST', body);
+      if (data.object === 'error') throw new Error(data.message);
+      results = results.concat(data.results);
+      cursor = data.has_more ? data.next_cursor : null;
+    } while (cursor);
+    allPlaces = results.map(parsePage).filter(p => p.lat && p.lng);
+    renderSidebar();
+    renderMap();
+    showToast(`已加载 ${allPlaces.length} 个地点`, true);
+  } catch(e) {
+    showToast('加载失败：' + e.message, true);
+  }
+}
 
-            let current = startPoint;
-            while (unvisited.length > 0) {
-                let nearestIdx = 0, minDist = Infinity;
-                unvisited.forEach((p, i) => {
-                    let d = Math.pow(current.lat-p.lat, 2) + Math.pow(current.lng-p.lng, 2);
-                    if (d < minDist) { minDist = d; nearestIdx = i; }
-                });
-                current = unvisited.splice(nearestIdx, 1)[0];
-                optimized.push(current);
-            }
-            if (startPoint.id !== endPoint.id) optimized.push(endPoint);
+function parsePage(page) {
+  const p = page.properties;
+  const txt = k => p[k]?.rich_text?.[0]?.plain_text || '';
+  const ttl = k => p[k]?.title?.[0]?.plain_text || '';
+  const sel = k => p[k]?.select?.name || '';
+  const num = k => p[k]?.number ?? null;
+  const url = k => p[k]?.url || '';
+  const latlng = txt('经纬度');
+  const parts = latlng.split(',');
+  const lat = parseFloat(parts[0]);
+  const lng = parseFloat(parts[1]);
+  return {
+    id: page.id, name: ttl('地点名'), address: txt('地址'),
+    latlng, lat: isNaN(lat)?null:lat, lng: isNaN(lng)?null:lng,
+    category: sel('分类'), day: sel('行程日'), order: num('当日顺序'),
+    mapUrl: url('Google Maps URL'), rating: txt('评分'),
+    price: txt('人均消费'), hours: txt('营业时间'), website: url('网址'),
+  };
+}
 
-            showToast("正在同步到 Notion...");
-            for (let i = 0; i < optimized.length; i++) {
-                // 如果是起终点相同，我们只更新 Notion 里存在的这一行，逻辑上的终点连线在地图端处理
-                await notionReq(`/pages/${optimized[i].id}`, 'PATCH', { properties: { '当日顺序': { number: i + 1 } } });
-            }
-            
-            // 重要：为了让地图识别闭环，如果起终点相同，我们在本地数据里记录这个意图
-            if (startPoint.id === endPoint.id) localStorage.setItem('is_loop_' + day, 'true');
-            else localStorage.removeItem('is_loop_' + day);
+function renderSidebar() {
+  const list = document.getElementById('poi-list');
+  if (!allPlaces.length) {
+    list.innerHTML = '<p style="padding:20px;color:#aaa;font-size:13px;text-align:center">暂无地点<br>请先用 Tampermonkey 脚本添加</p>';
+    return;
+  }
+  const groups = groupByDay(allPlaces);
+  const dayOrder = ['Day 1','Day 2','Day 3','Day 4','Day 5','未分组'];
+  const days = Object.keys(groups).sort((a,b) => dayOrder.indexOf(a)-dayOrder.indexOf(b));
+  list.innerHTML = days.map(day => {
+    const color = DAY_COLORS[day] || '#999';
+    const cards = groups[day].map(p => `
+      <div class="poi-card" id="card-${p.id}" onclick="focusPlace('${p.id}')">
+        <div class="poi-num" style="background:${color}">${p.order??'—'}</div>
+        <div>
+          <div class="poi-name">${esc(p.name)} ${CAT_EMOJI[p.category]||''}</div>
+          <div class="poi-meta">
+            ${p.address ? esc(p.address)+'<br>' : ''}
+            ${p.rating  ? '⭐ '+esc(p.rating)+' ' : ''}
+            ${p.price   ? '💰 '+esc(p.price) : ''}
+          </div>
+        </div>
+      </div>`).join('');
+    return `<div class="day-section">
+      <div class="day-header">
+        <div class="day-dot" style="background:${color}"></div>
+        <div class="day-label">${day}</div>
+      </div>${cards}</div>`;
+  }).join('');
+}
 
-            resetSelectMode();
-            loadData();
-        }
+function renderMap() {
+  Object.values(leafletMarkers).forEach(m => map.removeLayer(m));
+  polylines.forEach(p => map.removeLayer(p));
+  midMarkers.forEach(m => map.removeLayer(m));
+  leafletMarkers = {}; polylines = []; midMarkers = [];
+  if (!allPlaces.length) return;
+  const bounds = [];
+  allPlaces.forEach(p => {
+    const color = DAY_COLORS[p.day] || '#999';
+    const emoji = CAT_EMOJI[p.category] || '📍';
+    const ll = [p.lat, p.lng];
+    bounds.push(ll);
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="width:28px;height:28px;border-radius:50%;background:${color};border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;">${p.order??''}</div>`,
+      iconSize:[28,28], iconAnchor:[14,14],
+    });
+    const marker = L.marker(ll, { icon }).addTo(map);
+    marker.bindPopup(`
+      <div style="font-family:-apple-system,'PingFang SC',sans-serif;min-width:160px;padding:2px">
+        <div style="font-size:14px;font-weight:700;color:#202124;margin-bottom:4px">${emoji} ${esc(p.name)}</div>
+        ${p.day ? `<div style="font-size:12px;color:#1a73e8;margin-bottom:3px">${p.day}${p.order!=null?' · 第'+p.order+'站':''}</div>` : ''}
+        ${p.address  ? `<div style="font-size:12px;color:#5f6368;margin-bottom:2px">📍 ${esc(p.address)}</div>` : ''}
+        ${p.rating   ? `<div style="font-size:12px;color:#5f6368;margin-bottom:2px">⭐ ${esc(p.rating)}</div>` : ''}
+        ${p.price    ? `<div style="font-size:12px;color:#5f6368;margin-bottom:2px">💰 ${esc(p.price)}</div>` : ''}
+        ${p.hours    ? `<div style="font-size:12px;color:#5f6368;margin-bottom:2px">🕐 ${esc(p.hours)}</div>` : ''}
+        ${p.website  ? `<div style="margin-top:5px"><a href="${esc(p.website)}" target="_blank" style="font-size:12px;color:#1a73e8">🌐 官网</a></div>` : ''}
+        ${p.mapUrl   ? `<div style="margin-top:3px"><a href="${esc(p.mapUrl)}" target="_blank" style="font-size:12px;color:#1a73e8">📍 Google Maps</a></div>` : ''}
+      </div>`, { maxWidth:220 });
+    marker.on('click', () => highlightCard(p.id));
+    leafletMarkers[p.id] = marker;
+  });
 
-        function resetSelectMode() {
-            isSelecting = false; startPoint = null; endPoint = null;
-            document.querySelectorAll('.poi-card').forEach(el => el.className = 'poi-card');
-        }
+  const groups = groupByDay(allPlaces);
+  Object.entries(groups).forEach(([day, places]) => {
+    if (day === '未分组') return;
+    const color = DAY_COLORS[day] || '#999';
+    for (let i = 0; i < places.length-1; i++) {
+      const a = places[i], b = places[i+1];
+      const poly = L.polyline([[a.lat,a.lng],[b.lat,b.lng]], { color, weight:3, opacity:.75 }).addTo(map);
+      poly.on('click', () => openRoute(a, b));
+      polylines.push(poly);
+      const midIcon = L.divIcon({
+        className:'',
+        html:`<div style="width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid ${color};box-shadow:0 1px 4px rgba(0,0,0,.2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:9px;color:${color};font-weight:700;">⏱</div>`,
+        iconSize:[18,18], iconAnchor:[9,9],
+      });
+      const mid = L.marker([(a.lat+b.lat)/2,(a.lng+b.lng)/2], { icon:midIcon }).addTo(map);
+      mid.on('click', () => openRoute(a, b));
+      midMarkers.push(mid);
+    }
+  });
+  if (bounds.length) map.fitBounds(bounds, { padding:[30,30] });
+}
 
-        async function renderMap() {
-            polylines.forEach(p => map.removeLayer(p));
-            Object.values(markers).forEach(m => map.removeLayer(m));
-            polylines = []; markers = {};
-            
-            const groups = {};
-            allPlaces.forEach(p => { if(!groups[p.day]) groups[p.day]=[]; groups[p.day].push(p); });
-            
-            for (const [day, places] of Object.entries(groups)) {
-                const color = COLORS[Object.keys(groups).indexOf(day) % COLORS.length];
-                places.sort((a,b) => a.order - b.order);
-                
-                places.forEach(p => {
-                    const icon = L.divIcon({ className: '', html: `<div class="poi-num" style="background:${color};border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,0.2)">${p.order}</div>` });
-                    markers[p.id] = L.marker([p.lat, p.lng], {icon}).addTo(map);
-                });
+function openRoute(from, to) {
+  route = { from, to, mode:'driving', dist:'', time:'' };
+  document.getElementById('route-from-to').textContent = `${from.name}  →  ${to.name}`;
+  document.getElementById('route-result').textContent = '计算中...';
+  document.getElementById('route-save-btn').style.display = 'none';
+  document.getElementById('route-save-btn').textContent = '更新到 Notion';
+  document.getElementById('route-save-btn').className = '';
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('on'));
+  document.querySelector('.mode-btn').classList.add('on');
+  document.getElementById('route-panel').style.display = 'block';
+  calcRoute();
+}
+function closeRoute() { document.getElementById('route-panel').style.display = 'none'; }
+function setMode(btn, mode) {
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on'); route.mode = mode; calcRoute();
+}
 
-                if (places.length > 1) {
-                    let routePoints = [...places];
-                    // 【关键修复】如果标记为闭环，在请求 OSRM 时强行把起点加在数组最后
-                    if (localStorage.getItem('is_loop_' + day) === 'true') {
-                        routePoints.push(places[0]);
-                    }
+async function calcRoute() {
+  document.getElementById('route-result').textContent = '计算中...';
+  document.getElementById('route-save-btn').style.display = 'none';
+  const { from, to, mode } = route;
+  try {
+    if (mode === 'transit') {
+      const R = 6371;
+      const dLat = (to.lat-from.lat)*Math.PI/180;
+      const dLng = (to.lng-from.lng)*Math.PI/180;
+      const a = Math.sin(dLat/2)**2 + Math.cos(from.lat*Math.PI/180)*Math.cos(to.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+      const dist = R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+      const timeMin = Math.round(dist/25*60);
+      route.dist = dist.toFixed(1)+' km';
+      route.time = timeMin+' 分钟（估算）';
+      document.getElementById('route-result').innerHTML = `<strong>${route.time}</strong> · ${route.dist}<br><span style="font-size:11px;color:#aaa">公交路线为估算值</span>`;
+    } else {
+      const profile = mode==='walking'?'foot':'driving';
+      const res = await fetch(`https://router.project-osrm.org/route/v1/${profile}/${from.lng},${from.lat};${to.lng},${to.lat}?overview=false`);
+      const data = await res.json();
+      if (data.code !== 'Ok') throw new Error('路线计算失败');
+      const leg = data.routes[0].legs[0];
+      route.dist = (leg.distance/1000).toFixed(1)+' km';
+      route.time = Math.round(leg.duration/60)+' 分钟';
+      document.getElementById('route-result').innerHTML = `<strong>${route.time}</strong> · ${route.dist}`;
+    }
+    document.getElementById('route-save-btn').style.display = 'block';
+  } catch(e) {
+    document.getElementById('route-result').textContent = '计算失败，请重试';
+  }
+}
 
-                    const coordsStr = routePoints.map(p => `${p.lng},${p.lat}`).join(';');
-                    try {
-                        const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson`);
-                        const data = await res.json();
-                        if (data.routes && data.routes[0]) {
-                            const line = L.geoJSON(data.routes[0].geometry, {style: {color, weight: 6, opacity: 0.8}}).addTo(map);
-                            polylines.push(line);
-                            line.bindPopup(`<b>${day}路线</b><br>距离: ${(data.routes[0].distance/1000).toFixed(1)}km<br>预计时间: ${Math.round(data.routes[0].duration/60)}分钟`);
-                        }
-                    } catch(e) { console.error("道路加载失败"); }
-                }
-            }
-        }
+async function writeRouteToNotion() {
+  const btn = document.getElementById('route-save-btn');
+  btn.textContent = '更新中...'; btn.disabled = true;
+  const modeLabel = { driving:'驾车', transit:'公共交通', walking:'步行' };
+  try {
+    await notionReq(`/pages/${route.from.id}`, 'PATCH', {
+      properties: {
+        '交通耗时': { rich_text: [{ text: { content: `${route.time} / ${route.dist}` } }] },
+        '交通方式': { select: { name: modeLabel[route.mode] } },
+      }
+    });
+    btn.textContent = '✓ 已更新'; btn.className = 'ok'; btn.disabled = false;
+  } catch(e) {
+    btn.textContent = '失败：'+e.message; btn.disabled = false;
+  }
+}
 
-        function showToast(m, h){ const t=document.getElementById('toast'); t.textContent=m; t.style.display='block'; if(h) setTimeout(()=>t.style.display='none', 2000); }
-    </script>
+function groupByDay(places) {
+  const g = {};
+  places.forEach(p => { const d=p.day||'未分组'; if(!g[d])g[d]=[]; g[d].push(p); });
+  Object.values(g).forEach(arr => arr.sort((a,b)=>(a.order??99)-(b.order??99)));
+  return g;
+}
+function focusPlace(id) {
+  const p = allPlaces.find(x => x.id===id);
+  if (!p||!leafletMarkers[id]) return;
+  map.flyTo([p.lat,p.lng],16);
+  leafletMarkers[id].openPopup();
+  highlightCard(id);
+}
+function highlightCard(id) {
+  document.querySelectorAll('.poi-card').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById('card-'+id);
+  if (el) { el.classList.add('active'); el.scrollIntoView({ block:'nearest' }); }
+}
+let toastTimer;
+function showToast(msg, autoHide=false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTimer);
+  if (autoHide) toastTimer = setTimeout(()=>el.classList.remove('show'), 2500);
+}
+function esc(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
 </body>
 </html>
