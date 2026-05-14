@@ -24,11 +24,7 @@ body,html{ height:100%; font-family:-apple-system,'PingFang SC','Microsoft YaHei
 .day-header{ display:flex; align-items:center; gap:8px; padding:6px 8px 4px; }
 .day-dot{ width:10px; height:10px; border-radius:50%; flex-shrink:0; }
 .day-label{ font-size:11px; font-weight:700; color:#5f6368; text-transform:uppercase; letter-spacing:.06em; flex:1; }
-.optimize-btn{
-  font-size:11px; padding:3px 8px; border-radius:6px;
-  border:1px solid #e0e0e0; background:#fff; cursor:pointer;
-  color:#5f6368; white-space:nowrap; transition:all .15s;
-}
+.optimize-btn{ font-size:11px; padding:3px 8px; border-radius:6px; border:1px solid #e0e0e0; background:#fff; cursor:pointer; color:#5f6368; white-space:nowrap; transition:all .15s; }
 .optimize-btn:hover{ background:#e8f0fe; border-color:var(--primary); color:var(--primary); }
 .optimize-btn.loading{ color:#aaa; pointer-events:none; }
 .optimize-btn.done{ background:#e6f4ea; border-color:#a8d5b5; color:#137333; }
@@ -52,18 +48,27 @@ body,html{ height:100%; font-family:-apple-system,'PingFang SC','Microsoft YaHei
 #route-save-btn:hover{ background:#1557b0; }
 #route-save-btn.ok{ background:#137333; }
 
-/* 起点选择弹窗 */
+/* 起点终点选择弹窗 */
 #startpoint-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:9998; display:flex; align-items:center; justify-content:center; }
 #startpoint-overlay.hidden{ display:none; }
-#startpoint-box{ background:#fff; border-radius:16px; padding:22px 24px; width:320px; max-width:95vw; box-shadow:0 12px 40px rgba(0,0,0,.2); }
-#startpoint-box h3{ font-size:15px; font-weight:700; margin-bottom:6px; color:#202124; }
-#startpoint-box p{ font-size:12px; color:#80868b; margin-bottom:14px; }
-.startpoint-option{ display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; cursor:pointer; border:1.5px solid #e0e0e0; margin-bottom:8px; transition:all .15s; }
+#startpoint-box{
+  background:#fff; border-radius:16px; padding:22px 24px;
+  width:320px; max-width:95vw; max-height:85vh;
+  display:flex; flex-direction:column;
+  box-shadow:0 12px 40px rgba(0,0,0,.2);
+}
+#startpoint-box h3{ font-size:15px; font-weight:700; color:#202124; flex-shrink:0; }
+#startpoint-box p.subtitle{ font-size:12px; color:#80868b; margin:4px 0 12px; flex-shrink:0; }
+#startpoint-list{ overflow-y:auto; flex:1; padding-right:2px; }
+.sp-section-label{ font-size:11px; font-weight:600; color:#5f6368; text-transform:uppercase; letter-spacing:.04em; margin:10px 0 6px; }
+.sp-section-label:first-child{ margin-top:0; }
+.startpoint-option{ display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:10px; cursor:pointer; border:1.5px solid #e0e0e0; margin-bottom:6px; transition:all .15s; }
 .startpoint-option:hover{ background:#f0f7ff; border-color:var(--primary); }
-.startpoint-option.selected{ background:#e8f0fe; border-color:var(--primary); }
+.startpoint-option.selected-start{ background:#e8f0fe; border-color:var(--primary); }
+.startpoint-option.selected-end{ background:#e6f4ea; border-color:#34a853; }
 .startpoint-num{ width:22px; height:22px; border-radius:50%; font-size:11px; font-weight:700; color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 .startpoint-name{ font-size:13px; font-weight:500; color:#202124; }
-.startpoint-btns{ display:flex; gap:8px; margin-top:14px; }
+.startpoint-btns{ display:flex; gap:8px; margin-top:14px; flex-shrink:0; }
 .startpoint-btns button{ flex:1; padding:10px; border-radius:9px; border:none; font-size:13px; font-weight:600; cursor:pointer; }
 #sp-cancel{ background:#f1f3f4; color:#3c4043; }
 #sp-confirm{ background:var(--primary); color:#fff; }
@@ -115,11 +120,11 @@ body,html{ height:100%; font-family:-apple-system,'PingFang SC','Microsoft YaHei
   </div>
 </div>
 
-<!-- 起点选择弹窗 -->
+<!-- 起点终点选择弹窗 -->
 <div id="startpoint-overlay" class="hidden">
   <div id="startpoint-box">
-    <h3>🔀 选择起点</h3>
-    <p>选择从哪个地点出发，自动规划最优游览顺序</p>
+    <h3>🔀 优化游览顺序</h3>
+    <p class="subtitle">分别选择起点和终点，中间地点自动排序</p>
     <div id="startpoint-list"></div>
     <div class="startpoint-btns">
       <button id="sp-cancel" onclick="closeStartpoint()">取消</button>
@@ -160,15 +165,14 @@ body,html{ height:100%; font-family:-apple-system,'PingFang SC','Microsoft YaHei
 let map, allPlaces = [];
 let leafletMarkers = {}, polylines = [], midMarkers = [];
 let route = { from:null, to:null, mode:'driving', dist:'', time:'' };
-let optimizeState = { day:null, places:[], selectedStart:null };
+let optimizeState = { day:null, places:[], selectedStart:null, selectedEnd:null };
 
 const DAY_COLORS = { 'Day 1':'#1a73e8','Day 2':'#34a853','Day 3':'#fa7b17','Day 4':'#9334e6','Day 5':'#ea4335' };
 const CAT_EMOJI = { '餐厅':'🍜','景点':'🗺','酒店':'🏨','交通枢纽':'✈️','购物':'🛍' };
 const PROXIES = [
- url => `https://notion-proxy-travel.yunong0105.workers.dev/?url=${encodeURIComponent(url)}`,
+  url => `https://notion-proxy-travel.yunong0105.workers.dev/?url=${encodeURIComponent(url)}`,
 ];
 
-// ── 地图初始化 ──
 window.onload = () => {
   map = L.map('map',{zoomControl:true}).setView([22,114],10);
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
@@ -184,7 +188,6 @@ window.onload = () => {
   }
 };
 
-// ── 配置 ──
 function getConfig() { try { return JSON.parse(localStorage.getItem('ntm_cfg')); } catch(e) { return null; } }
 function openConfig() {
   const cfg = getConfig()||{};
@@ -202,7 +205,6 @@ function saveConfig() {
   loadData();
 }
 
-// ── Notion API ──
 async function notionReq(path, method='GET', body=null, proxyIdx=0) {
   const cfg = getConfig();
   const baseUrl = 'https://api.notion.com/v1' + path;
@@ -260,7 +262,6 @@ function parsePage(page) {
   };
 }
 
-// ── 侧边栏 ──
 function renderSidebar() {
   const list = document.getElementById('poi-list');
   if (!allPlaces.length) {
@@ -291,7 +292,7 @@ function renderSidebar() {
       <div class="day-header">
         <div class="day-dot" style="background:${color}"></div>
         <div class="day-label">${day}</div>
-        ${canOptimize ? `<button class="optimize-btn" id="opt-btn-${day}" onclick="openStartpoint('${day}')">🔀 优化顺序</button>` : ''}
+        ${canOptimize ? `<button class="optimize-btn" id="opt-btn-${day.replace(' ','-')}" onclick="openStartpoint('${day}')">🔀 优化顺序</button>` : ''}
       </div>
       ${cards}
     </div>`;
@@ -302,23 +303,44 @@ function renderSidebar() {
 function openStartpoint(day) {
   const groups = groupByDay(allPlaces);
   const places = groups[day] || [];
-  optimizeState = { day, places, selectedStart: null };
-
+  optimizeState = { day, places, selectedStart:null, selectedEnd:null };
   const color = DAY_COLORS[day] || '#999';
-  document.getElementById('startpoint-list').innerHTML = places.map(p => `
-    <div class="startpoint-option" id="sp-${p.id}" onclick="selectStart('${p.id}')">
-      <div class="startpoint-num" style="background:${color}">${p.order??'—'}</div>
-      <div class="startpoint-name">${esc(p.name)}</div>
-    </div>`).join('');
+
+  document.getElementById('startpoint-list').innerHTML = `
+    <div class="sp-section-label">🟢 起点（从哪里出发）</div>
+    ${places.map(p => `
+      <div class="startpoint-option" id="sp-s-${p.id}" onclick="selectStart('${p.id}')">
+        <div class="startpoint-num" style="background:${color}">${p.order??'—'}</div>
+        <div class="startpoint-name">${esc(p.name)}</div>
+      </div>`).join('')}
+    <div class="sp-section-label">🔴 终点（最终停在哪里）</div>
+    ${places.map(p => `
+      <div class="startpoint-option" id="sp-e-${p.id}" onclick="selectEnd('${p.id}')">
+        <div class="startpoint-num" style="background:${color}">${p.order??'—'}</div>
+        <div class="startpoint-name">${esc(p.name)}</div>
+      </div>`).join('')}
+  `;
   document.getElementById('sp-confirm').disabled = true;
   document.getElementById('startpoint-overlay').classList.remove('hidden');
 }
 
 function selectStart(id) {
   optimizeState.selectedStart = id;
-  document.querySelectorAll('.startpoint-option').forEach(el => el.classList.remove('selected'));
-  document.getElementById('sp-'+id)?.classList.add('selected');
-  document.getElementById('sp-confirm').disabled = false;
+  document.querySelectorAll('[id^="sp-s-"]').forEach(el => el.classList.remove('selected-start'));
+  document.getElementById('sp-s-'+id)?.classList.add('selected-start');
+  checkConfirmBtn();
+}
+
+function selectEnd(id) {
+  optimizeState.selectedEnd = id;
+  document.querySelectorAll('[id^="sp-e-"]').forEach(el => el.classList.remove('selected-end'));
+  document.getElementById('sp-e-'+id)?.classList.add('selected-end');
+  checkConfirmBtn();
+}
+
+function checkConfirmBtn() {
+  document.getElementById('sp-confirm').disabled =
+    !optimizeState.selectedStart || !optimizeState.selectedEnd;
 }
 
 function closeStartpoint() {
@@ -326,47 +348,61 @@ function closeStartpoint() {
 }
 
 async function confirmOptimize() {
-  const { day, places, selectedStart } = optimizeState;
+  const { day, places, selectedStart, selectedEnd } = optimizeState;
   closeStartpoint();
 
-  const btn = document.getElementById('opt-btn-'+day);
+  const dayKey = day.replace(' ','-');
+  const btn = document.getElementById('opt-btn-'+dayKey);
   if (btn) { btn.textContent = '计算中...'; btn.className = 'optimize-btn loading'; }
   showToast(`正在优化 ${day} 的路线...`);
 
   try {
-    // 1. 构建距离矩阵（OSRM Table API）
     const coords = places.map(p => `${p.lng},${p.lat}`).join(';');
     const res = await fetch(`https://router.project-osrm.org/table/v1/driving/${coords}?annotations=duration`);
     const data = await res.json();
     if (data.code !== 'Ok') throw new Error('距离矩阵计算失败');
-    const matrix = data.durations; // matrix[i][j] = 从i到j的时间（秒）
+    const matrix = data.durations;
 
-    // 2. 贪心最近邻算法
     const startIdx = places.findIndex(p => p.id === selectedStart);
+    const endIdx   = places.findIndex(p => p.id === selectedEnd);
     const n = places.length;
-    const visited = new Array(n).fill(false);
-    const orderedIndices = [startIdx];
-    visited[startIdx] = true;
 
-    for (let step = 1; step < n; step++) {
-      const last = orderedIndices[orderedIndices.length-1];
-      let nearest = -1, minTime = Infinity;
-      for (let j = 0; j < n; j++) {
-        if (!visited[j] && matrix[last][j] < minTime) {
-          minTime = matrix[last][j]; nearest = j;
+    // 起点和终点相同时，普通贪心
+    if (startIdx === endIdx) {
+      const visited = new Set([startIdx]);
+      const ordered = [startIdx];
+      let current = startIdx;
+      while (visited.size < n) {
+        let nearest = -1, minTime = Infinity;
+        for (let j = 0; j < n; j++) {
+          if (!visited.has(j) && matrix[current][j] < minTime) {
+            minTime = matrix[current][j]; nearest = j;
+          }
         }
+        visited.add(nearest); ordered.push(nearest); current = nearest;
       }
-      visited[nearest] = true;
-      orderedIndices.push(nearest);
+      await writeOrders(places, ordered);
+    } else {
+      // 中间点贪心，起点终点固定
+      const middleIndices = [];
+      for (let i = 0; i < n; i++) {
+        if (i !== startIdx && i !== endIdx) middleIndices.push(i);
+      }
+      const visited = new Set();
+      const ordered = [startIdx];
+      let current = startIdx;
+      while (visited.size < middleIndices.length) {
+        let nearest = -1, minTime = Infinity;
+        for (const idx of middleIndices) {
+          if (!visited.has(idx) && matrix[current][idx] < minTime) {
+            minTime = matrix[current][idx]; nearest = idx;
+          }
+        }
+        visited.add(nearest); ordered.push(nearest); current = nearest;
+      }
+      ordered.push(endIdx);
+      await writeOrders(places, ordered);
     }
-
-    // 3. 写回 Notion（更新当日顺序字段）
-    const updates = orderedIndices.map((placeIdx, order) =>
-      notionReq(`/pages/${places[placeIdx].id}`, 'PATCH', {
-        properties: { '当日顺序': { number: order + 1 } }
-      })
-    );
-    await Promise.all(updates);
 
     if (btn) { btn.textContent = '✓ 已优化'; btn.className = 'optimize-btn done'; }
     showToast(`${day} 路线已优化，重新加载中...`);
@@ -375,6 +411,15 @@ async function confirmOptimize() {
     if (btn) { btn.textContent = '🔀 优化顺序'; btn.className = 'optimize-btn'; }
     showToast('优化失败：'+e.message, true);
   }
+}
+
+async function writeOrders(places, orderedIndices) {
+  const updates = orderedIndices.map((placeIdx, order) =>
+    notionReq(`/pages/${places[placeIdx].id}`, 'PATCH', {
+      properties: { '当日顺序': { number: order + 1 } }
+    })
+  );
+  await Promise.all(updates);
 }
 
 // ── 地图渲染 ──
@@ -460,7 +505,7 @@ async function calcRoute() {
       const R=6371, dLat=(to.lat-from.lat)*Math.PI/180, dLng=(to.lng-from.lng)*Math.PI/180;
       const a=Math.sin(dLat/2)**2+Math.cos(from.lat*Math.PI/180)*Math.cos(to.lat*Math.PI/180)*Math.sin(dLng/2)**2;
       const dist=R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-      route.dist=dist.toFixed(1)+' km'; route.time=Math.round(dist/25*60)+' 分钟（估算）';
+      route.dist=dist.toFixed(1)+' km'; route.time=Math.round(dist/20*60)+' 分钟（估算）';
       document.getElementById('route-result').innerHTML=`<strong>${route.time}</strong> · ${route.dist}<br><span style="font-size:11px;color:#aaa">公交路线为估算值</span>`;
     } else {
       const profile=mode==='walking'?'foot':'driving';
@@ -468,8 +513,15 @@ async function calcRoute() {
       const data=await res.json();
       if (data.code!=='Ok') throw new Error('路线计算失败');
       const leg=data.routes[0].legs[0];
-      route.dist=(leg.distance/1000).toFixed(1)+' km';
-      route.time=Math.round(leg.duration/60)+' 分钟';
+const distKm = leg.distance/1000;
+route.dist = distKm.toFixed(1)+' km';
+const rawMin = leg.duration/60;
+const adjustedMin = mode==='walking'
+  ? distKm/5*60
+  : mode==='transit'
+  ? distKm/20*60
+  : rawMin*2;
+route.time = Math.round(adjustedMin)+' 分钟';
       document.getElementById('route-result').innerHTML=`<strong>${route.time}</strong> · ${route.dist}`;
     }
     document.getElementById('route-save-btn').style.display='block';
