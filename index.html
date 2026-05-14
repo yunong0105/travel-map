@@ -97,7 +97,7 @@
     const latlng = coordMatch ? `${coordMatch[1]},${coordMatch[2]}` : '';
 
     // 分类权重算法
-    const subText = document.querySelector('.mgr77e, .CB0Z6, [jsaction*="category"], .DkEaL, .D6p1u')?.innerText || '';
+    const subText = document.querySelector('.DkEaL, .D6p1u, .YhemCb')?.innerText || '';
     const tags = Array.from(document.querySelectorAll('.u0YpEc, .F7nice')).map(e => e.innerText).join(' ');
     const full = (name + ' ' + subText + ' ' + tags).toLowerCase();
     const scores = { '餐厅': 0, '酒店': 0, '购物': 0, '景点': 0 };
@@ -222,10 +222,7 @@
     };
     if (d.rating)  properties['评分']     = { rich_text: [{ text: { content: d.rating + (d.reviews ? `（${d.reviews}条）` : '') } }] };
     if (d.price)   properties['人均消费'] = { rich_text: [{ text: { content: d.price } }] };
-   const hoursRaw = Array.from(document.querySelectorAll('[aria-label]'))
-  .find(el => el.getAttribute('aria-label')?.includes('星期'))
-  ?.getAttribute('aria-label') || '';
-const hours = hoursRaw.replace(/[、，,]\s*复制营业时间.*$/,'').trim();
+    if (d.hours)   properties['营业时间'] = { rich_text: [{ text: { content: d.hours } }] };
     if (d.website) properties['网址']     = { url: d.website };
 
     GM_xmlhttpRequest({
