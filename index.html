@@ -437,8 +437,8 @@ function renderMap() {
     bounds.push(ll);
     const icon = L.divIcon({
       className:'',
-     html:`<div style="width:32px;height:32px;border-radius:50%;background:${color};border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;font-size:16px;">${CAT_EMOJI[p.category]||'📍'}</div>`,
-      iconSize:[28,28], iconAnchor:[14,14],
+      html:`<div style="width:36px;height:36px;border-radius:50%;background:#fff;border:2.5px solid ${color};box-shadow:0 2px 8px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;font-size:20px;">${CAT_EMOJI[p.category]||'📍'}</div>`,
+      iconSize:[36,36], iconAnchor:[18,18],
     });
     const marker = L.marker(ll,{icon}).addTo(map);
     marker.bindPopup(`
@@ -497,24 +497,29 @@ function setMode(btn,mode) {
   btn.classList.add('on'); route.mode=mode; calcRoute();
 }
 async function calcRoute() {
-  const {from, to, mode} = route;
-  document.getElementById('route-result').textContent = '计算中...';
-  document.getElementById('route-save-btn').style.display = 'none';
-
+  document.getElementById('route-result').textContent='计算中...';
+  document.getElementById('route-save-btn').style.display='none';
+  const {from,to,mode} = route;
   try {
-    const profile = mode === 'walking' ? 'foot' : mode === 'transit' ? 'foot' : 'driving';
-    const res = await fetch(`https://router.project-osrm.org/route/v1/${profile}/${from.lng},${from.lat};${to.lng},${to.lat}?overview=false`);
-    const data = await res.json();
-    if (data.code !== 'Ok') throw new Error('计算失败');
-    const distKm = (data.routes[0].legs[0].distance / 1000).toFixed(1);
-    route.dist = distKm + ' km';
-    const modeMap = { driving:'driving', transit:'transit', walking:'walking' };
-    const gmUrl = `https://www.google.com/maps/dir/?api=1&origin=${from.lat},${from.lng}&destination=${to.lat},${to.lng}&travelmode=${modeMap[mode]}`;
-    document.getElementById('route-result').innerHTML = `
-      <div style="font-size:15px;font-weight:700;color:#202124;margin-bottom:8px">📏 ${distKm} km</div>
-      <a href="${gmUrl}" target="_blank" style="display:block;padding:9px;background:#1a73e8;color:#fff;border-radius:9px;text-align:center;font-weight:600;font-size:13px;text-decoration:none;">Google Maps 查看路线 ↗</a>`;
+    if (mode==='transit') {
+      const R=6371, dLat=(to.lat-from.lat)*Math.PI/180, dLng=(to.lng-from.lng)*Math.PI/180;
+      const a=Math.sin(dLat/2)**2+Math.cos(from.lat*Math.PI/180)*Math.cos(to.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+      const dist=R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+      route.dist=dist.toFixed(1)+' km'; route.time=Math.round(dist/25*60)+' 分钟（估算）';
+      document.getElementById('route-result').innerHTML=`<strong>${route.time}</strong> · ${route.dist}<br><span style="font-size:11px;color:#aaa">公交路线为估算值</span>`;
+    } else {
+      const profile=mode==='walking'?'foot':'driving';
+      const res=await fetch(`https://router.project-osrm.org/route/v1/${profile}/${from.lng},${from.lat};${to.lng},${to.lat}?overview=false`);
+      const data=await res.json();
+      if (data.code!=='Ok') throw new Error('路线计算失败');
+      const leg=data.routes[0].legs[0];
+      route.dist=(leg.distance/1000).toFixed(1)+' km';
+      route.time=Math.round(leg.duration/60)+' 分钟';
+      document.getElementById('route-result').innerHTML=`<strong>${route.time}</strong> · ${route.dist}`;
+    }
+    document.getElementById('route-save-btn').style.display='block';
   } catch(e) {
-    document.getElementById('route-result').textContent = '距离计算失败，请重试';
+    document.getElementById('route-result').textContent='计算失败，请重试';
   }
 }
 async function writeRouteToNotion() {
