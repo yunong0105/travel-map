@@ -497,37 +497,17 @@ function setMode(btn,mode) {
   btn.classList.add('on'); route.mode=mode; calcRoute();
 }
 async function calcRoute() {
-  document.getElementById('route-result').textContent='计算中...';
-  document.getElementById('route-save-btn').style.display='none';
-  const {from,to,mode} = route;
-  try {
-    if (mode==='transit') {
-      const R=6371, dLat=(to.lat-from.lat)*Math.PI/180, dLng=(to.lng-from.lng)*Math.PI/180;
-      const a=Math.sin(dLat/2)**2+Math.cos(from.lat*Math.PI/180)*Math.cos(to.lat*Math.PI/180)*Math.sin(dLng/2)**2;
-      const dist=R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-      route.dist=dist.toFixed(1)+' km'; route.time=Math.round(dist/20*60)+' 分钟（估算）';
-      document.getElementById('route-result').innerHTML=`<strong>${route.time}</strong> · ${route.dist}<br><span style="font-size:11px;color:#aaa">公交路线为估算值</span>`;
-    } else {
-      const profile=mode==='walking'?'foot':'driving';
-      const res=await fetch(`https://router.project-osrm.org/route/v1/${profile}/${from.lng},${from.lat};${to.lng},${to.lat}?overview=false`);
-      const data=await res.json();
-      if (data.code!=='Ok') throw new Error('路线计算失败');
-      const leg=data.routes[0].legs[0];
-const distKm = leg.distance/1000;
-route.dist = distKm.toFixed(1)+' km';
-const rawMin = leg.duration/60;
-const adjustedMin = mode==='walking'
-  ? distKm/5*60
-  : mode==='transit'
-  ? distKm/20*60
-  : rawMin*2;
-route.time = Math.round(adjustedMin)+' 分钟';
-      document.getElementById('route-result').innerHTML=`<strong>${route.time}</strong> · ${route.dist}`;
-    }
-    document.getElementById('route-save-btn').style.display='block';
-  } catch(e) {
-    document.getElementById('route-result').textContent='计算失败，请重试';
-  }
+  const {from, to, mode} = route;
+  const modeMap = { driving:'driving', transit:'transit', walking:'walking' };
+  const url = `https://www.google.com/maps/dir/?api=1&origin=${from.lat},${from.lng}&destination=${to.lat},${to.lng}&travelmode=${modeMap[mode]}`;
+  document.getElementById('route-result').innerHTML = `
+    <a href="${url}" target="_blank" style="
+      display:block; padding:10px; background:#1a73e8; color:#fff;
+      border-radius:9px; text-align:center; font-weight:600;
+      font-size:13px; text-decoration:none;
+    ">在 Google Maps 查看路线 ↗</a>
+    <div style="font-size:11px;color:#aaa;margin-top:6px;text-align:center">点击后在新标签页打开</div>`;
+  document.getElementById('route-save-btn').style.display = 'none';
 }
 async function writeRouteToNotion() {
   const btn=document.getElementById('route-save-btn');
