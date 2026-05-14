@@ -165,8 +165,7 @@ let optimizeState = { day:null, places:[], selectedStart:null };
 const DAY_COLORS = { 'Day 1':'#1a73e8','Day 2':'#34a853','Day 3':'#fa7b17','Day 4':'#9334e6','Day 5':'#ea4335' };
 const CAT_EMOJI = { '餐厅':'🍜','景点':'🗺','酒店':'🏨','交通枢纽':'✈️','购物':'🛍' };
 const PROXIES = [
-  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-  url => `https://thingproxy.freeboard.io/fetch/${url}`,
+ url => `https://notion-proxy-travel.yunong0105.workers.dev/?url=${encodeURIComponent(url)}`,
 ];
 
 // ── 地图初始化 ──
