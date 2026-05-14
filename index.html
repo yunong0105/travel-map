@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>📍 我的全球旅行地图</title>
+    <title>📍 我的旅行地图</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root { --primary: #007aff; --bg: #f5f5f7; --sidebar-w: 300px; }
@@ -30,10 +30,11 @@
 <div id="config-modal" style="display: none;">
     <div class="modal-content">
         <h3 style="margin-top:0">⚙️ 配置 Notion</h3>
-        <label style="font-size:12px">Notion Token</label>
-        <input type="password" id="notion-token" placeholder="粘贴你的 ntn_ Token">
-        <label style="font-size:12px">Database ID</label>
-        <input type="text" id="db-id" placeholder="粘贴 32 位 ID">
+        <p style="font-size: 12px; color: #666;">配置将保存在本地浏览器，不会上传到 GitHub。</p>
+        <label style="font-size:12px">Notion Token (ntn_...)</label>
+        <input type="password" id="notion-token" placeholder="在此粘贴你的 Token">
+        <label style="font-size:12px">Database ID (32位)</label>
+        <input type="text" id="db-id" placeholder="在此粘贴数据库 ID">
         <button class="save-btn" onclick="saveConfig()">保存并查看地图</button>
     </div>
 </div>
@@ -54,14 +55,7 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // ==========================================
-    // 💡 这里的 Token 拆开填，绝对不会报 Secret 错误了
-    // ==========================================
-    const MY_P_1 = "ntn_"; 
-const MY_P_2 = "";    // 这里留空！不要填东西
-const MY_DB_ID = "";  // 这里也留空！
-    // ==========================================
-
+    // 这里没有任何 Token 信息，GitHub 不会再报错了
     let map, markers = [], polyline;
     const DAY_COLORS = { 'Day 1': '#007aff', 'Day 2': '#34c759', 'Day 3': '#ff9500', 'Day 4': '#5856d6' };
 
@@ -70,6 +64,10 @@ const MY_DB_ID = "";  // 这里也留空！
             token: document.getElementById('notion-token').value.trim(),
             dbId: document.getElementById('db-id').value.trim()
         };
+        if (!config.token || !config.dbId) {
+            alert("请完整填写信息！");
+            return;
+        }
         localStorage.setItem('notion_travel_config', JSON.stringify(config));
         location.reload();
     }
@@ -78,14 +76,7 @@ const MY_DB_ID = "";  // 这里也留空！
         map = L.map('map-container').setView([3.1390, 101.6869], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-        let cfg = JSON.parse(localStorage.getItem('notion_travel_config'));
-        
-        // 自动拼装代码里的 Token
-        if (!cfg && MY_P_2.length > 5) {
-            cfg = { token: MY_P_1 + MY_P_2, dbId: MY_DB_ID };
-            localStorage.setItem('notion_travel_config', JSON.stringify(cfg));
-        }
-
+        const cfg = JSON.parse(localStorage.getItem('notion_travel_config'));
         if (!cfg) {
             document.getElementById('config-modal').style.display = 'flex';
         } else {
@@ -95,7 +86,9 @@ const MY_DB_ID = "";  // 这里也留空！
 
     async function fetchNotionData() {
         const cfg = JSON.parse(localStorage.getItem('notion_travel_config'));
+        // 使用一个稳健的代理，直接拼接请求
         const proxy = "https://corsproxy.io/?https://api.notion.com/v1/databases/" + cfg.dbId + "/query";
+        
         try {
             const res = await fetch(proxy, {
                 method: 'POST',
@@ -106,10 +99,15 @@ const MY_DB_ID = "";  // 这里也留空！
                 }
             });
             const data = await res.json();
-            if (data.results) renderData(data.results);
-            else throw new Error();
+            if (data.results) {
+                renderData(data.results);
+            } else if (data.object === "error") {
+                alert("Notion 错误: " + data.message + "\n请检查 Token 或 Connection。");
+                localStorage.removeItem('notion_travel_config'); // 出错就清除配置重来
+                location.reload();
+            }
         } catch (e) {
-            document.getElementById('config-modal').style.display = 'flex';
+            alert("网络错误，请稍后再试。");
         }
     }
 
