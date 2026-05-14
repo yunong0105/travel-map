@@ -9,115 +9,81 @@
 :root { --primary:#1a73e8; --sidebar:300px; }
 *{ box-sizing:border-box; margin:0; padding:0; }
 body,html{ height:100%; font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif; overflow:hidden; }
-
-/* ── 布局 ── */
 #app{ display:flex; height:100vh; }
-#sidebar{
-  width:var(--sidebar); background:#fff; border-right:1px solid #eee;
-  display:flex; flex-direction:column; z-index:10; flex-shrink:0;
-}
+#sidebar{ width:var(--sidebar); background:#fff; border-right:1px solid #eee; display:flex; flex-direction:column; z-index:10; flex-shrink:0; }
 #map-wrap{ flex:1; position:relative; }
 #map{ width:100%; height:100%; }
 
-/* ── 顶栏 ── */
-#topbar{
-  padding:14px 16px 10px; border-bottom:1px solid #eee;
-  display:flex; align-items:center; justify-content:space-between;
-}
+#topbar{ padding:14px 16px 10px; border-bottom:1px solid #eee; display:flex; align-items:center; justify-content:space-between; }
 #topbar h1{ font-size:15px; font-weight:700; color:#202124; }
-.icon-btn{
-  background:none; border:1px solid #e0e0e0; border-radius:8px;
-  padding:5px 10px; font-size:12px; cursor:pointer; color:#5f6368;
-  display:flex; align-items:center; gap:4px; transition:background .15s;
-}
+.icon-btn{ background:none; border:1px solid #e0e0e0; border-radius:8px; padding:5px 10px; font-size:12px; cursor:pointer; color:#5f6368; display:flex; align-items:center; gap:4px; transition:background .15s; }
 .icon-btn:hover{ background:#f1f3f4; }
 
-/* ── 地点列表 ── */
 #poi-list{ flex:1; overflow-y:auto; padding:10px 8px; }
 .day-section{ margin-bottom:12px; }
-.day-header{
-  display:flex; align-items:center; gap:8px;
-  padding:6px 8px; margin-bottom:4px;
-}
+.day-header{ display:flex; align-items:center; gap:8px; padding:6px 8px 4px; }
 .day-dot{ width:10px; height:10px; border-radius:50%; flex-shrink:0; }
-.day-label{ font-size:11px; font-weight:700; color:#5f6368; text-transform:uppercase; letter-spacing:.06em; }
-.poi-card{
-  display:flex; align-items:flex-start; gap:10px;
-  padding:10px 10px; border-radius:10px; cursor:pointer;
-  transition:background .12s; margin-bottom:2px;
+.day-label{ font-size:11px; font-weight:700; color:#5f6368; text-transform:uppercase; letter-spacing:.06em; flex:1; }
+.optimize-btn{
+  font-size:11px; padding:3px 8px; border-radius:6px;
+  border:1px solid #e0e0e0; background:#fff; cursor:pointer;
+  color:#5f6368; white-space:nowrap; transition:all .15s;
 }
+.optimize-btn:hover{ background:#e8f0fe; border-color:var(--primary); color:var(--primary); }
+.optimize-btn.loading{ color:#aaa; pointer-events:none; }
+.optimize-btn.done{ background:#e6f4ea; border-color:#a8d5b5; color:#137333; }
+
+.poi-card{ display:flex; align-items:flex-start; gap:10px; padding:10px; border-radius:10px; cursor:pointer; transition:background .12s; margin-bottom:2px; }
 .poi-card:hover{ background:#f0f7ff; }
 .poi-card.active{ background:#e8f0fe; }
-.poi-num{
-  width:22px; height:22px; border-radius:50%; flex-shrink:0;
-  font-size:11px; font-weight:700; color:#fff;
-  display:flex; align-items:center; justify-content:center; margin-top:1px;
-}
+.poi-num{ width:22px; height:22px; border-radius:50%; flex-shrink:0; font-size:11px; font-weight:700; color:#fff; display:flex; align-items:center; justify-content:center; margin-top:1px; }
 .poi-name{ font-size:13px; font-weight:600; color:#202124; line-height:1.3; }
 .poi-meta{ font-size:11px; color:#80868b; margin-top:2px; line-height:1.5; }
+.travel-time{ font-size:11px; color:#1a73e8; margin-top:2px; }
 
-/* ── 路程面板 ── */
-#route-panel{
-  position:absolute; bottom:20px; right:20px; width:300px;
-  background:#fff; border-radius:16px; padding:16px 18px;
-  box-shadow:0 4px 24px rgba(0,0,0,.14);
-  border:1px solid #e8e8e8; z-index:500;
-  display:none;
-}
-#route-close{
-  position:absolute; top:10px; right:12px;
-  background:none; border:none; font-size:16px; cursor:pointer; color:#999;
-}
+#route-panel{ position:absolute; bottom:20px; right:20px; width:300px; background:#fff; border-radius:16px; padding:16px 18px; box-shadow:0 4px 24px rgba(0,0,0,.14); border:1px solid #e8e8e8; z-index:500; display:none; }
+#route-close{ position:absolute; top:10px; right:12px; background:none; border:none; font-size:16px; cursor:pointer; color:#999; }
 #route-from-to{ font-size:13px; font-weight:600; color:#202124; margin-bottom:10px; line-height:1.4; }
 .mode-btns{ display:flex; gap:6px; margin-bottom:10px; }
-.mode-btn{
-  flex:1; padding:6px 4px; border:1.5px solid #e0e0e0; border-radius:8px;
-  background:#fff; cursor:pointer; font-size:12px; font-weight:500; text-align:center;
-  transition:all .15s;
-}
+.mode-btn{ flex:1; padding:6px 4px; border:1.5px solid #e0e0e0; border-radius:8px; background:#fff; cursor:pointer; font-size:12px; font-weight:500; text-align:center; transition:all .15s; }
 .mode-btn.on{ background:#e8f0fe; border-color:var(--primary); color:var(--primary); }
 #route-result{ font-size:13px; color:#202124; min-height:32px; margin-bottom:10px; line-height:1.6; }
-#route-save-btn{
-  width:100%; padding:9px; background:var(--primary); color:#fff;
-  border:none; border-radius:9px; font-size:13px; font-weight:600; cursor:pointer;
-  display:none; transition:background .15s;
-}
+#route-save-btn{ width:100%; padding:9px; background:var(--primary); color:#fff; border:none; border-radius:9px; font-size:13px; font-weight:600; cursor:pointer; display:none; }
 #route-save-btn:hover{ background:#1557b0; }
 #route-save-btn.ok{ background:#137333; }
 
-/* ── 配置弹窗 ── */
-#cfg-overlay{
-  position:fixed; inset:0; background:rgba(0,0,0,.5);
-  z-index:9999; display:flex; align-items:center; justify-content:center;
-}
+/* 起点选择弹窗 */
+#startpoint-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:9998; display:flex; align-items:center; justify-content:center; }
+#startpoint-overlay.hidden{ display:none; }
+#startpoint-box{ background:#fff; border-radius:16px; padding:22px 24px; width:320px; max-width:95vw; box-shadow:0 12px 40px rgba(0,0,0,.2); }
+#startpoint-box h3{ font-size:15px; font-weight:700; margin-bottom:6px; color:#202124; }
+#startpoint-box p{ font-size:12px; color:#80868b; margin-bottom:14px; }
+.startpoint-option{ display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; cursor:pointer; border:1.5px solid #e0e0e0; margin-bottom:8px; transition:all .15s; }
+.startpoint-option:hover{ background:#f0f7ff; border-color:var(--primary); }
+.startpoint-option.selected{ background:#e8f0fe; border-color:var(--primary); }
+.startpoint-num{ width:22px; height:22px; border-radius:50%; font-size:11px; font-weight:700; color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.startpoint-name{ font-size:13px; font-weight:500; color:#202124; }
+.startpoint-btns{ display:flex; gap:8px; margin-top:14px; }
+.startpoint-btns button{ flex:1; padding:10px; border-radius:9px; border:none; font-size:13px; font-weight:600; cursor:pointer; }
+#sp-cancel{ background:#f1f3f4; color:#3c4043; }
+#sp-confirm{ background:var(--primary); color:#fff; }
+#sp-confirm:disabled{ background:#a8c7fa; cursor:not-allowed; }
+
+#cfg-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:9999; display:flex; align-items:center; justify-content:center; }
 #cfg-overlay.hidden{ display:none; }
-#cfg-box{
-  background:#fff; border-radius:20px; padding:26px 28px; width:360px; max-width:95vw;
-  box-shadow:0 12px 48px rgba(0,0,0,.2);
-}
+#cfg-box{ background:#fff; border-radius:20px; padding:26px 28px; width:360px; max-width:95vw; box-shadow:0 12px 48px rgba(0,0,0,.2); }
 #cfg-box h2{ font-size:17px; font-weight:700; margin-bottom:6px; }
 #cfg-box p{ font-size:12px; color:#80868b; margin-bottom:18px; }
 .cfg-field{ margin-bottom:14px; }
 .cfg-field label{ display:block; font-size:11px; font-weight:600; color:#5f6368; margin-bottom:4px; text-transform:uppercase; letter-spacing:.04em; }
-.cfg-field input{
-  width:100%; padding:9px 12px; border:1.5px solid #e0e0e0; border-radius:9px;
-  font-size:13px; outline:none; transition:border-color .15s;
-}
+.cfg-field input{ width:100%; padding:9px 12px; border:1.5px solid #e0e0e0; border-radius:9px; font-size:13px; outline:none; transition:border-color .15s; }
 .cfg-field input:focus{ border-color:var(--primary); }
 .cfg-field .hint{ font-size:11px; color:#aaa; margin-top:3px; }
-#cfg-save{
-  width:100%; padding:11px; background:var(--primary); color:#fff;
-  border:none; border-radius:10px; font-size:14px; font-weight:600; cursor:pointer; margin-top:4px;
-}
+#cfg-save{ width:100%; padding:11px; background:var(--primary); color:#fff; border:none; border-radius:10px; font-size:14px; font-weight:600; cursor:pointer; margin-top:4px; }
 #cfg-save:hover{ background:#1557b0; }
-#cfg-cancel{ width:100%; padding:8px; background:none; border:none; color:#80868b; font-size:13px; cursor:pointer; margin-top:6px; }
+#cfg-cancel-btn{ width:100%; padding:8px; background:none; border:none; color:#80868b; font-size:13px; cursor:pointer; margin-top:6px; }
 
-/* ── 加载提示 ── */
-#toast{
-  position:fixed; top:60px; left:50%; transform:translateX(-50%);
-  background:#202124; color:#fff; padding:8px 18px; border-radius:20px;
-  font-size:13px; z-index:600; opacity:0; pointer-events:none; transition:opacity .25s;
-}
+#toast{ position:fixed; top:60px; left:50%; transform:translateX(-50%); background:#202124; color:#fff; padding:8px 18px; border-radius:20px; font-size:13px; z-index:600; opacity:0; pointer-events:none; transition:opacity .25s; }
 #toast.show{ opacity:1; }
 
 @media(max-width:640px){
@@ -145,7 +111,20 @@ body,html{ height:100%; font-family:-apple-system,'PingFang SC','Microsoft YaHei
       <div class="hint">数据库 URL 中 ?v= 前面那段（不需要加横杠）</div>
     </div>
     <button id="cfg-save" onclick="saveConfig()">保存并加载地图</button>
-    <button id="cfg-cancel" onclick="cancelConfig()">取消</button>
+    <button id="cfg-cancel-btn" onclick="cancelConfig()">取消</button>
+  </div>
+</div>
+
+<!-- 起点选择弹窗 -->
+<div id="startpoint-overlay" class="hidden">
+  <div id="startpoint-box">
+    <h3>🔀 选择起点</h3>
+    <p>选择从哪个地点出发，自动规划最优游览顺序</p>
+    <div id="startpoint-list"></div>
+    <div class="startpoint-btns">
+      <button id="sp-cancel" onclick="closeStartpoint()">取消</button>
+      <button id="sp-confirm" onclick="confirmOptimize()" disabled>开始优化</button>
+    </div>
   </div>
 </div>
 
@@ -181,70 +160,59 @@ body,html{ height:100%; font-family:-apple-system,'PingFang SC','Microsoft YaHei
 let map, allPlaces = [];
 let leafletMarkers = {}, polylines = [], midMarkers = [];
 let route = { from:null, to:null, mode:'driving', dist:'', time:'' };
+let optimizeState = { day:null, places:[], selectedStart:null };
 
-const DAY_COLORS = {
-  'Day 1':'#1a73e8','Day 2':'#34a853','Day 3':'#fa7b17',
-  'Day 4':'#9334e6','Day 5':'#ea4335'
-};
+const DAY_COLORS = { 'Day 1':'#1a73e8','Day 2':'#34a853','Day 3':'#fa7b17','Day 4':'#9334e6','Day 5':'#ea4335' };
 const CAT_EMOJI = { '餐厅':'🍜','景点':'🗺','酒店':'🏨','交通枢纽':'✈️','购物':'🛍' };
 const PROXIES = [
   url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
   url => `https://cors-proxy.fringe.zone/${url}`,
 ];
 
+// ── 地图初始化 ──
 window.onload = () => {
-  map = L.map('map', { zoomControl:true }).setView([22, 114], 10);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    attribution: '© OpenStreetMap © CARTO',
-    subdomains: 'abcd', maxZoom: 19
+  map = L.map('map',{zoomControl:true}).setView([22,114],10);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
+    attribution:'© OpenStreetMap © CARTO', subdomains:'abcd', maxZoom:19
   }).addTo(map);
   const cfg = getConfig();
   if (!cfg) {
     document.getElementById('cfg-overlay').classList.remove('hidden');
-    document.getElementById('cfg-cancel').style.display = 'none';
+    document.getElementById('cfg-cancel-btn').style.display = 'none';
   } else {
     document.getElementById('cfg-overlay').classList.add('hidden');
     loadData();
   }
 };
 
-function getConfig() {
-  try { return JSON.parse(localStorage.getItem('ntm_cfg')); } catch(e) { return null; }
-}
+// ── 配置 ──
+function getConfig() { try { return JSON.parse(localStorage.getItem('ntm_cfg')); } catch(e) { return null; } }
 function openConfig() {
-  const cfg = getConfig() || {};
-  document.getElementById('cfg-token').value = cfg.token || '';
-  document.getElementById('cfg-dbid').value  = cfg.dbid  || '';
+  const cfg = getConfig()||{};
+  document.getElementById('cfg-token').value = cfg.token||'';
+  document.getElementById('cfg-dbid').value  = cfg.dbid||'';
   document.getElementById('cfg-overlay').classList.remove('hidden');
 }
-function cancelConfig() {
-  if (getConfig()) document.getElementById('cfg-overlay').classList.add('hidden');
-}
+function cancelConfig() { if (getConfig()) document.getElementById('cfg-overlay').classList.add('hidden'); }
 function saveConfig() {
   const token = document.getElementById('cfg-token').value.trim();
   const dbid  = document.getElementById('cfg-dbid').value.trim().replace(/-/g,'');
-  if (!token || !dbid) { alert('请填写完整'); return; }
-  localStorage.setItem('ntm_cfg', JSON.stringify({ token, dbid }));
+  if (!token||!dbid) { alert('请填写完整'); return; }
+  localStorage.setItem('ntm_cfg', JSON.stringify({token,dbid}));
   document.getElementById('cfg-overlay').classList.add('hidden');
   loadData();
 }
 
+// ── Notion API ──
 async function notionReq(path, method='GET', body=null, proxyIdx=0) {
   const cfg = getConfig();
   const baseUrl = 'https://api.notion.com/v1' + path;
   const proxyUrl = PROXIES[proxyIdx](baseUrl);
-  const opts = {
-    method,
-    headers: {
-      'Authorization': `Bearer ${cfg.token}`,
-      'Notion-Version': '2022-06-28',
-      'Content-Type': 'application/json',
-    }
-  };
+  const opts = { method, headers:{ 'Authorization':`Bearer ${cfg.token}`, 'Notion-Version':'2022-06-28', 'Content-Type':'application/json' } };
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(proxyUrl, opts);
   if (!res.ok) {
-    if (proxyIdx < PROXIES.length - 1) return notionReq(path, method, body, proxyIdx + 1);
+    if (proxyIdx < PROXIES.length-1) return notionReq(path, method, body, proxyIdx+1);
     throw new Error(`HTTP ${res.status}`);
   }
   return res.json();
@@ -255,44 +223,45 @@ async function loadData() {
   try {
     const cfg = getConfig();
     if (!cfg) { openConfig(); return; }
-    let results = [], cursor;
+    let results=[], cursor;
     do {
-      const body = { page_size:100 };
+      const body = {page_size:100};
       if (cursor) body.start_cursor = cursor;
-      const data = await notionReq(`/databases/${cfg.dbid}/query`, 'POST', body);
-      if (data.object === 'error') throw new Error(data.message);
+      const data = await notionReq(`/databases/${cfg.dbid}/query`,'POST',body);
+      if (data.object==='error') throw new Error(data.message);
       results = results.concat(data.results);
       cursor = data.has_more ? data.next_cursor : null;
-    } while (cursor);
+    } while(cursor);
     allPlaces = results.map(parsePage).filter(p => p.lat && p.lng);
     renderSidebar();
     renderMap();
     showToast(`已加载 ${allPlaces.length} 个地点`, true);
   } catch(e) {
-    showToast('加载失败：' + e.message, true);
+    showToast('加载失败：'+e.message, true);
   }
 }
 
 function parsePage(page) {
   const p = page.properties;
-  const txt = k => p[k]?.rich_text?.[0]?.plain_text || '';
-  const ttl = k => p[k]?.title?.[0]?.plain_text || '';
-  const sel = k => p[k]?.select?.name || '';
-  const num = k => p[k]?.number ?? null;
-  const url = k => p[k]?.url || '';
+  const txt = k => p[k]?.rich_text?.[0]?.plain_text||'';
+  const ttl = k => p[k]?.title?.[0]?.plain_text||'';
+  const sel = k => p[k]?.select?.name||'';
+  const num = k => p[k]?.number??null;
+  const url = k => p[k]?.url||'';
   const latlng = txt('经纬度');
   const parts = latlng.split(',');
-  const lat = parseFloat(parts[0]);
-  const lng = parseFloat(parts[1]);
+  const lat = parseFloat(parts[0]), lng = parseFloat(parts[1]);
   return {
-    id: page.id, name: ttl('地点名'), address: txt('地址'),
-    latlng, lat: isNaN(lat)?null:lat, lng: isNaN(lng)?null:lng,
-    category: sel('分类'), day: sel('行程日'), order: num('当日顺序'),
-    mapUrl: url('Google Maps URL'), rating: txt('评分'),
-    price: txt('人均消费'), hours: txt('营业时间'), website: url('网址'),
+    id:page.id, name:ttl('地点名'), address:txt('地址'),
+    latlng, lat:isNaN(lat)?null:lat, lng:isNaN(lng)?null:lng,
+    category:sel('分类'), day:sel('行程日'), order:num('当日顺序'),
+    mapUrl:url('Google Maps URL'), rating:txt('评分'),
+    price:txt('人均消费'), website:url('网址'),
+    travelTime:txt('交通耗时'), travelMode:sel('交通方式'),
   };
 }
 
+// ── 侧边栏 ──
 function renderSidebar() {
   const list = document.getElementById('poi-list');
   if (!allPlaces.length) {
@@ -301,178 +270,258 @@ function renderSidebar() {
   }
   const groups = groupByDay(allPlaces);
   const dayOrder = ['Day 1','Day 2','Day 3','Day 4','Day 5','未分组'];
-  const days = Object.keys(groups).sort((a,b) => dayOrder.indexOf(a)-dayOrder.indexOf(b));
+  const days = Object.keys(groups).sort((a,b)=>dayOrder.indexOf(a)-dayOrder.indexOf(b));
   list.innerHTML = days.map(day => {
-    const color = DAY_COLORS[day] || '#999';
-    const cards = groups[day].map(p => `
+    const color = DAY_COLORS[day]||'#999';
+    const places = groups[day];
+    const cards = places.map(p => `
       <div class="poi-card" id="card-${p.id}" onclick="focusPlace('${p.id}')">
         <div class="poi-num" style="background:${color}">${p.order??'—'}</div>
-        <div>
+        <div style="flex:1;min-width:0">
           <div class="poi-name">${esc(p.name)} ${CAT_EMOJI[p.category]||''}</div>
           <div class="poi-meta">
             ${p.address ? esc(p.address)+'<br>' : ''}
             ${p.rating  ? '⭐ '+esc(p.rating)+' ' : ''}
             ${p.price   ? '💰 '+esc(p.price) : ''}
           </div>
+          ${p.travelTime ? `<div class="travel-time">→ ${esc(p.travelTime)} ${p.travelMode?'('+esc(p.travelMode)+')':''}</div>` : ''}
         </div>
       </div>`).join('');
+    const canOptimize = places.length >= 2 && day !== '未分组';
     return `<div class="day-section">
       <div class="day-header">
         <div class="day-dot" style="background:${color}"></div>
         <div class="day-label">${day}</div>
-      </div>${cards}</div>`;
+        ${canOptimize ? `<button class="optimize-btn" id="opt-btn-${day}" onclick="openStartpoint('${day}')">🔀 优化顺序</button>` : ''}
+      </div>
+      ${cards}
+    </div>`;
   }).join('');
 }
 
+// ── 路线优化 ──
+function openStartpoint(day) {
+  const groups = groupByDay(allPlaces);
+  const places = groups[day] || [];
+  optimizeState = { day, places, selectedStart: null };
+
+  const color = DAY_COLORS[day] || '#999';
+  document.getElementById('startpoint-list').innerHTML = places.map(p => `
+    <div class="startpoint-option" id="sp-${p.id}" onclick="selectStart('${p.id}')">
+      <div class="startpoint-num" style="background:${color}">${p.order??'—'}</div>
+      <div class="startpoint-name">${esc(p.name)}</div>
+    </div>`).join('');
+  document.getElementById('sp-confirm').disabled = true;
+  document.getElementById('startpoint-overlay').classList.remove('hidden');
+}
+
+function selectStart(id) {
+  optimizeState.selectedStart = id;
+  document.querySelectorAll('.startpoint-option').forEach(el => el.classList.remove('selected'));
+  document.getElementById('sp-'+id)?.classList.add('selected');
+  document.getElementById('sp-confirm').disabled = false;
+}
+
+function closeStartpoint() {
+  document.getElementById('startpoint-overlay').classList.add('hidden');
+}
+
+async function confirmOptimize() {
+  const { day, places, selectedStart } = optimizeState;
+  closeStartpoint();
+
+  const btn = document.getElementById('opt-btn-'+day);
+  if (btn) { btn.textContent = '计算中...'; btn.className = 'optimize-btn loading'; }
+  showToast(`正在优化 ${day} 的路线...`);
+
+  try {
+    // 1. 构建距离矩阵（OSRM Table API）
+    const coords = places.map(p => `${p.lng},${p.lat}`).join(';');
+    const res = await fetch(`https://router.project-osrm.org/table/v1/driving/${coords}?annotations=duration`);
+    const data = await res.json();
+    if (data.code !== 'Ok') throw new Error('距离矩阵计算失败');
+    const matrix = data.durations; // matrix[i][j] = 从i到j的时间（秒）
+
+    // 2. 贪心最近邻算法
+    const startIdx = places.findIndex(p => p.id === selectedStart);
+    const n = places.length;
+    const visited = new Array(n).fill(false);
+    const orderedIndices = [startIdx];
+    visited[startIdx] = true;
+
+    for (let step = 1; step < n; step++) {
+      const last = orderedIndices[orderedIndices.length-1];
+      let nearest = -1, minTime = Infinity;
+      for (let j = 0; j < n; j++) {
+        if (!visited[j] && matrix[last][j] < minTime) {
+          minTime = matrix[last][j]; nearest = j;
+        }
+      }
+      visited[nearest] = true;
+      orderedIndices.push(nearest);
+    }
+
+    // 3. 写回 Notion（更新当日顺序字段）
+    const updates = orderedIndices.map((placeIdx, order) =>
+      notionReq(`/pages/${places[placeIdx].id}`, 'PATCH', {
+        properties: { '当日顺序': { number: order + 1 } }
+      })
+    );
+    await Promise.all(updates);
+
+    if (btn) { btn.textContent = '✓ 已优化'; btn.className = 'optimize-btn done'; }
+    showToast(`${day} 路线已优化，重新加载中...`);
+    setTimeout(() => loadData(), 800);
+  } catch(e) {
+    if (btn) { btn.textContent = '🔀 优化顺序'; btn.className = 'optimize-btn'; }
+    showToast('优化失败：'+e.message, true);
+  }
+}
+
+// ── 地图渲染 ──
 function renderMap() {
   Object.values(leafletMarkers).forEach(m => map.removeLayer(m));
   polylines.forEach(p => map.removeLayer(p));
   midMarkers.forEach(m => map.removeLayer(m));
-  leafletMarkers = {}; polylines = []; midMarkers = [];
+  leafletMarkers={}; polylines=[]; midMarkers=[];
   if (!allPlaces.length) return;
   const bounds = [];
   allPlaces.forEach(p => {
-    const color = DAY_COLORS[p.day] || '#999';
-    const emoji = CAT_EMOJI[p.category] || '📍';
-    const ll = [p.lat, p.lng];
+    const color = DAY_COLORS[p.day]||'#999';
+    const emoji = CAT_EMOJI[p.category]||'📍';
+    const ll = [p.lat,p.lng];
     bounds.push(ll);
     const icon = L.divIcon({
-      className: '',
-      html: `<div style="width:28px;height:28px;border-radius:50%;background:${color};border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;">${p.order??''}</div>`,
+      className:'',
+      html:`<div style="width:28px;height:28px;border-radius:50%;background:${color};border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;">${p.order??''}</div>`,
       iconSize:[28,28], iconAnchor:[14,14],
     });
-    const marker = L.marker(ll, { icon }).addTo(map);
+    const marker = L.marker(ll,{icon}).addTo(map);
     marker.bindPopup(`
       <div style="font-family:-apple-system,'PingFang SC',sans-serif;min-width:160px;padding:2px">
         <div style="font-size:14px;font-weight:700;color:#202124;margin-bottom:4px">${emoji} ${esc(p.name)}</div>
-        ${p.day ? `<div style="font-size:12px;color:#1a73e8;margin-bottom:3px">${p.day}${p.order!=null?' · 第'+p.order+'站':''}</div>` : ''}
-        ${p.address  ? `<div style="font-size:12px;color:#5f6368;margin-bottom:2px">📍 ${esc(p.address)}</div>` : ''}
-        ${p.rating   ? `<div style="font-size:12px;color:#5f6368;margin-bottom:2px">⭐ ${esc(p.rating)}</div>` : ''}
-        ${p.price    ? `<div style="font-size:12px;color:#5f6368;margin-bottom:2px">💰 ${esc(p.price)}</div>` : ''}
-        ${p.hours    ? `<div style="font-size:12px;color:#5f6368;margin-bottom:2px">🕐 ${esc(p.hours)}</div>` : ''}
-        ${p.website  ? `<div style="margin-top:5px"><a href="${esc(p.website)}" target="_blank" style="font-size:12px;color:#1a73e8">🌐 官网</a></div>` : ''}
-        ${p.mapUrl   ? `<div style="margin-top:3px"><a href="${esc(p.mapUrl)}" target="_blank" style="font-size:12px;color:#1a73e8">📍 Google Maps</a></div>` : ''}
-      </div>`, { maxWidth:220 });
-    marker.on('click', () => highlightCard(p.id));
+        ${p.day?`<div style="font-size:12px;color:#1a73e8;margin-bottom:3px">${p.day}${p.order!=null?' · 第'+p.order+'站':''}</div>`:''}
+        ${p.address?`<div style="font-size:12px;color:#5f6368;margin-bottom:2px">📍 ${esc(p.address)}</div>`:''}
+        ${p.rating?`<div style="font-size:12px;color:#5f6368;margin-bottom:2px">⭐ ${esc(p.rating)}</div>`:''}
+        ${p.price?`<div style="font-size:12px;color:#5f6368;margin-bottom:2px">💰 ${esc(p.price)}</div>`:''}
+        ${p.travelTime?`<div style="font-size:12px;color:#1a73e8;margin-bottom:2px">🚗 下一站 ${esc(p.travelTime)}</div>`:''}
+        ${p.website?`<div style="margin-top:5px"><a href="${esc(p.website)}" target="_blank" style="font-size:12px;color:#1a73e8">🌐 官网</a></div>`:''}
+        ${p.mapUrl?`<div style="margin-top:3px"><a href="${esc(p.mapUrl)}" target="_blank" style="font-size:12px;color:#1a73e8">📍 Google Maps</a></div>`:''}
+      </div>`,{maxWidth:220});
+    marker.on('click',()=>highlightCard(p.id));
     leafletMarkers[p.id] = marker;
   });
 
   const groups = groupByDay(allPlaces);
-  Object.entries(groups).forEach(([day, places]) => {
-    if (day === '未分组') return;
-    const color = DAY_COLORS[day] || '#999';
-    for (let i = 0; i < places.length-1; i++) {
-      const a = places[i], b = places[i+1];
-      const poly = L.polyline([[a.lat,a.lng],[b.lat,b.lng]], { color, weight:3, opacity:.75 }).addTo(map);
-      poly.on('click', () => openRoute(a, b));
+  Object.entries(groups).forEach(([day,places])=>{
+    if (day==='未分组') return;
+    const color = DAY_COLORS[day]||'#999';
+    for (let i=0;i<places.length-1;i++) {
+      const a=places[i], b=places[i+1];
+      const poly = L.polyline([[a.lat,a.lng],[b.lat,b.lng]],{color,weight:3,opacity:.75}).addTo(map);
+      poly.on('click',()=>openRoute(a,b));
       polylines.push(poly);
       const midIcon = L.divIcon({
         className:'',
         html:`<div style="width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid ${color};box-shadow:0 1px 4px rgba(0,0,0,.2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:9px;color:${color};font-weight:700;">⏱</div>`,
         iconSize:[18,18], iconAnchor:[9,9],
       });
-      const mid = L.marker([(a.lat+b.lat)/2,(a.lng+b.lng)/2], { icon:midIcon }).addTo(map);
-      mid.on('click', () => openRoute(a, b));
+      const mid = L.marker([(a.lat+b.lat)/2,(a.lng+b.lng)/2],{icon:midIcon}).addTo(map);
+      mid.on('click',()=>openRoute(a,b));
       midMarkers.push(mid);
     }
   });
-  if (bounds.length) map.fitBounds(bounds, { padding:[30,30] });
+  if (bounds.length) map.fitBounds(bounds,{padding:[30,30]});
 }
 
+// ── 路程计算 ──
 function openRoute(from, to) {
-  route = { from, to, mode:'driving', dist:'', time:'' };
+  route = {from,to,mode:'driving',dist:'',time:''};
   document.getElementById('route-from-to').textContent = `${from.name}  →  ${to.name}`;
   document.getElementById('route-result').textContent = '计算中...';
   document.getElementById('route-save-btn').style.display = 'none';
   document.getElementById('route-save-btn').textContent = '更新到 Notion';
   document.getElementById('route-save-btn').className = '';
-  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('on'));
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('on'));
   document.querySelector('.mode-btn').classList.add('on');
   document.getElementById('route-panel').style.display = 'block';
   calcRoute();
 }
-function closeRoute() { document.getElementById('route-panel').style.display = 'none'; }
-function setMode(btn, mode) {
-  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('on'));
-  btn.classList.add('on'); route.mode = mode; calcRoute();
+function closeRoute() { document.getElementById('route-panel').style.display='none'; }
+function setMode(btn,mode) {
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on'); route.mode=mode; calcRoute();
 }
-
 async function calcRoute() {
-  document.getElementById('route-result').textContent = '计算中...';
-  document.getElementById('route-save-btn').style.display = 'none';
-  const { from, to, mode } = route;
+  document.getElementById('route-result').textContent='计算中...';
+  document.getElementById('route-save-btn').style.display='none';
+  const {from,to,mode} = route;
   try {
-    if (mode === 'transit') {
-      const R = 6371;
-      const dLat = (to.lat-from.lat)*Math.PI/180;
-      const dLng = (to.lng-from.lng)*Math.PI/180;
-      const a = Math.sin(dLat/2)**2 + Math.cos(from.lat*Math.PI/180)*Math.cos(to.lat*Math.PI/180)*Math.sin(dLng/2)**2;
-      const dist = R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-      const timeMin = Math.round(dist/25*60);
-      route.dist = dist.toFixed(1)+' km';
-      route.time = timeMin+' 分钟（估算）';
-      document.getElementById('route-result').innerHTML = `<strong>${route.time}</strong> · ${route.dist}<br><span style="font-size:11px;color:#aaa">公交路线为估算值</span>`;
+    if (mode==='transit') {
+      const R=6371, dLat=(to.lat-from.lat)*Math.PI/180, dLng=(to.lng-from.lng)*Math.PI/180;
+      const a=Math.sin(dLat/2)**2+Math.cos(from.lat*Math.PI/180)*Math.cos(to.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+      const dist=R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+      route.dist=dist.toFixed(1)+' km'; route.time=Math.round(dist/25*60)+' 分钟（估算）';
+      document.getElementById('route-result').innerHTML=`<strong>${route.time}</strong> · ${route.dist}<br><span style="font-size:11px;color:#aaa">公交路线为估算值</span>`;
     } else {
-      const profile = mode==='walking'?'foot':'driving';
-      const res = await fetch(`https://router.project-osrm.org/route/v1/${profile}/${from.lng},${from.lat};${to.lng},${to.lat}?overview=false`);
-      const data = await res.json();
-      if (data.code !== 'Ok') throw new Error('路线计算失败');
-      const leg = data.routes[0].legs[0];
-      route.dist = (leg.distance/1000).toFixed(1)+' km';
-      route.time = Math.round(leg.duration/60)+' 分钟';
-      document.getElementById('route-result').innerHTML = `<strong>${route.time}</strong> · ${route.dist}`;
+      const profile=mode==='walking'?'foot':'driving';
+      const res=await fetch(`https://router.project-osrm.org/route/v1/${profile}/${from.lng},${from.lat};${to.lng},${to.lat}?overview=false`);
+      const data=await res.json();
+      if (data.code!=='Ok') throw new Error('路线计算失败');
+      const leg=data.routes[0].legs[0];
+      route.dist=(leg.distance/1000).toFixed(1)+' km';
+      route.time=Math.round(leg.duration/60)+' 分钟';
+      document.getElementById('route-result').innerHTML=`<strong>${route.time}</strong> · ${route.dist}`;
     }
-    document.getElementById('route-save-btn').style.display = 'block';
+    document.getElementById('route-save-btn').style.display='block';
   } catch(e) {
-    document.getElementById('route-result').textContent = '计算失败，请重试';
+    document.getElementById('route-result').textContent='计算失败，请重试';
   }
 }
-
 async function writeRouteToNotion() {
-  const btn = document.getElementById('route-save-btn');
-  btn.textContent = '更新中...'; btn.disabled = true;
-  const modeLabel = { driving:'驾车', transit:'公共交通', walking:'步行' };
+  const btn=document.getElementById('route-save-btn');
+  btn.textContent='更新中...'; btn.disabled=true;
+  const modeLabel={driving:'驾车',transit:'公共交通',walking:'步行'};
   try {
-    await notionReq(`/pages/${route.from.id}`, 'PATCH', {
-      properties: {
-        '交通耗时': { rich_text: [{ text: { content: `${route.time} / ${route.dist}` } }] },
-        '交通方式': { select: { name: modeLabel[route.mode] } },
+    await notionReq(`/pages/${route.from.id}`,'PATCH',{
+      properties:{
+        '交通耗时':{rich_text:[{text:{content:`${route.time} / ${route.dist}`}}]},
+        '交通方式':{select:{name:modeLabel[route.mode]}},
       }
     });
-    btn.textContent = '✓ 已更新'; btn.className = 'ok'; btn.disabled = false;
+    btn.textContent='✓ 已更新'; btn.className='ok'; btn.disabled=false;
   } catch(e) {
-    btn.textContent = '失败：'+e.message; btn.disabled = false;
+    btn.textContent='失败：'+e.message; btn.disabled=false;
   }
 }
 
+// ── 工具 ──
 function groupByDay(places) {
-  const g = {};
-  places.forEach(p => { const d=p.day||'未分组'; if(!g[d])g[d]=[]; g[d].push(p); });
-  Object.values(g).forEach(arr => arr.sort((a,b)=>(a.order??99)-(b.order??99)));
+  const g={};
+  places.forEach(p=>{const d=p.day||'未分组';if(!g[d])g[d]=[];g[d].push(p);});
+  Object.values(g).forEach(arr=>arr.sort((a,b)=>(a.order??99)-(b.order??99)));
   return g;
 }
 function focusPlace(id) {
-  const p = allPlaces.find(x => x.id===id);
-  if (!p||!leafletMarkers[id]) return;
+  const p=allPlaces.find(x=>x.id===id);
+  if(!p||!leafletMarkers[id]) return;
   map.flyTo([p.lat,p.lng],16);
   leafletMarkers[id].openPopup();
   highlightCard(id);
 }
 function highlightCard(id) {
-  document.querySelectorAll('.poi-card').forEach(el => el.classList.remove('active'));
-  const el = document.getElementById('card-'+id);
-  if (el) { el.classList.add('active'); el.scrollIntoView({ block:'nearest' }); }
+  document.querySelectorAll('.poi-card').forEach(el=>el.classList.remove('active'));
+  const el=document.getElementById('card-'+id);
+  if(el){el.classList.add('active');el.scrollIntoView({block:'nearest'});}
 }
 let toastTimer;
-function showToast(msg, autoHide=false) {
-  const el = document.getElementById('toast');
-  el.textContent = msg; el.classList.add('show');
+function showToast(msg,autoHide=false) {
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
   clearTimeout(toastTimer);
-  if (autoHide) toastTimer = setTimeout(()=>el.classList.remove('show'), 2500);
+  if(autoHide) toastTimer=setTimeout(()=>el.classList.remove('show'),2500);
 }
-function esc(s) {
-  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 </script>
 </body>
 </html>
