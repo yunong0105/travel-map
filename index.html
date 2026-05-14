@@ -3,109 +3,69 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🗺 旅行地图 - 稳定版</title>
+<title>🗺 旅行地图 - 闭环点选版</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
 :root { --primary:#1a73e8; --sidebar:320px; }
 *{ box-sizing:border-box; margin:0; padding:0; }
 body,html{ height:100%; font-family:-apple-system,'PingFang SC',sans-serif; overflow:hidden; }
-#app{ display:flex; height:100vh; }
+#app{ display:flex; height:100vh; position:relative; }
 #sidebar{ width:var(--sidebar); background:#fff; border-right:1px solid #eee; display:flex; flex-direction:column; z-index:10; }
-#map-wrap{ flex:1; position:relative; }
+#map-wrap{ flex:1; position:relative; z-index:1; }
 #map{ width:100%; height:100%; }
+#cfg-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:999999 !important; display:flex; align-items:center; justify-content:center; }
+#cfg-overlay.force-hide { display:none !important; }
+.cfg-box { background:#fff; padding:25px; border-radius:16px; width:340px; }
+.cfg-input { width:100%; margin-bottom:12px; padding:12px; border:1px solid #ddd; border-radius:8px; }
+.cfg-btn { width:100%; padding:14px; background:var(--primary); color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:bold; }
 #topbar{ padding:14px 16px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; }
 #poi-list{ flex:1; overflow-y:auto; padding:10px 8px; }
-.day-section{ margin-bottom:15px; }
-.day-header{ display:flex; justify-content:space-between; align-items:center; padding:6px 8px; }
-.day-label{ font-size:12px; font-weight:700; color:#5f6368; }
+.day-header{ display:flex; justify-content:space-between; align-items:center; padding:6px 8px; margin-bottom:5px; }
 .optimize-btn{ font-size:11px; color:var(--primary); background:#e8f0fe; border:none; padding:4px 12px; border-radius:12px; cursor:pointer; font-weight:600; }
 .optimize-btn.active { background: #ea4335; color: #fff; }
-.poi-card{ display:flex; align-items:center; gap:10px; padding:10px; border-radius:8px; cursor:pointer; margin-bottom:2px; transition: 0.2s; border: 2px solid transparent; }
-.poi-card:hover{ background:#f8f9fa; }
-.poi-card.picked-start { border: 2px solid #34a853; background: #e6f4ea; }
-.poi-card.picked-end { border: 2px solid #ea4335; background: #fce8e6; }
+.poi-card{ display:flex; align-items:center; gap:10px; padding:10px; border-radius:8px; cursor:pointer; margin-bottom:2px; border: 2px solid transparent; }
+.poi-card.picked-start { border-color: #34a853; background: #e6f4ea; }
+.poi-card.picked-end { border-color: #ea4335; background: #fce8e6; }
 .poi-num{ width:22px; height:22px; border-radius:50%; background:var(--primary); color:#fff; font-size:11px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.poi-name{ font-size:13px; font-weight:600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-/* 物理弹窗强制样式 */
-#cfg-overlay{ position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:99999; display:flex; align-items:center; justify-content:center; backdrop-filter: blur(4px); }
-#cfg-overlay.hidden{ display:none !important; }
-#toast{ position:fixed; top:20px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); color:#fff; padding:10px 24px; border-radius:24px; z-index:10000; display:none; font-size:14px; }
+.poi-name{ font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#toast{ position:fixed; top:20px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.85); color:#fff; padding:10px 24px; border-radius:24px; z-index:1000000; display:none; font-size:14px; }
 </style>
 </head>
 <body>
-
 <div id="toast"></div>
-
 <div id="cfg-overlay">
-    <div style="background:#fff; padding:25px; border-radius:16px; width:340px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
-        <h3 style="margin-bottom:15px; text-align:center;">⚙️ 配置 Notion </h3>
-        <input id="cfg-token" type="password" placeholder="请输入 Notion Token" style="width:100%; margin-bottom:12px; padding:12px; border:1px solid #ddd; border-radius:8px;">
-        <input id="cfg-dbid" placeholder="请输入 Database ID" style="width:100%; margin-bottom:12px; padding:12px; border:1px solid #ddd; border-radius:8px;">
-        <button onclick="saveConfig()" style="width:100%; padding:14px; background:var(--primary); color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-size:15px;">保存并加载数据</button>
-        <p style="font-size:11px; color:#999; margin-top:10px; text-align:center;">保存后弹窗将自动关闭</p>
+    <div class="cfg-box">
+        <h3 style="text-align:center;margin-bottom:15px">⚙️ 配置 Notion</h3>
+        <input id="cfg-token" class="cfg-input" type="password" placeholder="Notion Token">
+        <input id="cfg-dbid" class="cfg-input" placeholder="Database ID">
+        <button onclick="saveConfig()" class="cfg-btn">保存并加载</button>
     </div>
 </div>
-
 <div id="app">
     <div id="sidebar">
-        <div id="topbar">
-            <h1 style="font-size:16px">🗺 旅行地图</h1>
-            <div style="display:flex; gap:8px;">
-                <button onclick="loadData()" style="cursor:pointer; border:1px solid #ddd; background:#fff; padding:5px 10px; border-radius:6px; font-size:12px;">🔄 刷新</button>
-                <button onclick="openConfig()" style="cursor:pointer; border:1px solid #ddd; background:#fff; padding:5px 10px; border-radius:6px; font-size:12px;">⚙️</button>
-            </div>
-        </div>
+        <div id="topbar"><h1>🗺 旅行地图</h1><button onclick="loadData()">🔄刷新</button></div>
         <div id="poi-list"></div>
     </div>
     <div id="map-wrap"><div id="map"></div></div>
 </div>
-
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-let map, allPlaces = [];
-let markers = {}, polylines = [];
+let map, allPlaces = [], markers = {}, polylines = [];
 let isSelecting = false, selectionType = 'start', startPoint = null, endPoint = null;
+const DAY_COLORS = { 'Day 1':'#1a73e8','Day 2':'#34a853','Day 3':'#fa7b17','Day 4':'#9334e6' };
 
-const DAY_COLORS = { 'Day 1':'#1a73e8','Day 2':'#34a853','Day 3':'#fa7b17','Day 4':'#9334e6','Day 5':'#ea4335' };
-
-// 初始化
 window.onload = () => {
-    map = L.map('map', { zoomControl: false }).setView([5.41, 100.33], 13); // 默认定位到槟城
+    map = L.map('map', { zoomControl: false }).setView([22, 114], 12);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(map);
-    
-    // 强制检查：如果没有存过配置，显示弹窗；有则隐藏并加载
-    const cfg = localStorage.getItem('ntm_cfg');
-    if (!cfg) {
-        openConfig();
-    } else {
-        document.getElementById('cfg-overlay').classList.add('hidden');
-        loadData();
-    }
+    if (!localStorage.getItem('ntm_cfg')) document.getElementById('cfg-overlay').classList.remove('force-hide');
+    else { closeConfig(); loadData(); }
 };
 
-function openConfig() {
-    document.getElementById('cfg-overlay').classList.remove('hidden');
-    const cfg = JSON.parse(localStorage.getItem('ntm_cfg') || '{}');
-    if(cfg.token) document.getElementById('cfg-token').value = cfg.token;
-    if(cfg.dbid) document.getElementById('cfg-dbid').value = cfg.dbid;
-}
-
-// 核心修复逻辑：强制隐藏并刷新
+function closeConfig() { document.getElementById('cfg-overlay').classList.add('force-hide'); }
 function saveConfig() {
     const token = document.getElementById('cfg-token').value.trim();
     const dbid = document.getElementById('cfg-dbid').value.trim();
-    
-    if (token && dbid) {
-        localStorage.setItem('ntm_cfg', JSON.stringify({token, dbid}));
-        // 第一步：立刻物理隐藏弹窗
-        document.getElementById('cfg-overlay').classList.add('hidden');
-        // 第二步：执行加载
-        loadData();
-        showToast("配置已保存！", true);
-    } else {
-        alert("Token 和 ID 都要填哦！");
-    }
+    if (token && dbid) { localStorage.setItem('ntm_cfg', JSON.stringify({token, dbid})); closeConfig(); loadData(); }
 }
 
 async function notionReq(path, method='GET', body=null) {
@@ -119,88 +79,59 @@ async function notionReq(path, method='GET', body=null) {
 }
 
 async function loadData() {
-    showToast("同步中...");
     const cfg = JSON.parse(localStorage.getItem('ntm_cfg'));
     if(!cfg) return;
-    try {
-        const data = await notionReq(`/databases/${cfg.dbid}/query`, 'POST');
-        if(data.results) {
-            allPlaces = data.results.map(page => {
-                const p = page.properties;
-                const ll = (p['经纬度']?.rich_text?.[0]?.plain_text || '0,0').split(',');
-                return {
-                    id: page.id,
-                    name: p['地点名']?.title?.[0]?.plain_text || '未命名',
-                    lat: parseFloat(ll[0]), lng: parseFloat(ll[1]),
-                    day: p['行程日']?.select?.name || '未分组',
-                    order: p['当日顺序']?.number || 0
-                };
-            }).filter(p => p.lat !== 0);
-            renderSidebar();
-            renderMap();
-            showToast("同步完成", true);
-        }
-    } catch (e) { showToast("加载失败，请重试"); }
+    showToast("同步中...");
+    const data = await notionReq(`/databases/${cfg.dbid}/query`, 'POST');
+    if(data.results) {
+        allPlaces = data.results.map(page => {
+            const p = page.properties;
+            const ll = (p['经纬度']?.rich_text?.[0]?.plain_text || '0,0').split(',');
+            return { id: page.id, name: p['地点名']?.title?.[0]?.plain_text || '未命名', lat: parseFloat(ll[0]), lng: parseFloat(ll[1]), day: p['行程日']?.select?.name || '未分组', order: p['当日顺序']?.number || 0 };
+        }).filter(p => p.lat !== 0);
+        renderSidebar(); renderMap(); showToast("同步完成", true);
+    }
 }
 
 function renderSidebar() {
-    const groups = groupByDay(allPlaces);
+    const groups = {};
+    allPlaces.forEach(p => { if(!groups[p.day]) groups[p.day]=[]; groups[p.day].push(p); });
     const list = document.getElementById('poi-list');
     list.innerHTML = Object.keys(groups).sort().map(day => {
-        const color = DAY_COLORS[day] || '#999';
-        return `
-            <div class="day-section" id="section-${day}">
-                <div class="day-header">
-                    <span class="day-label">${day}</span>
-                    <button class="optimize-btn" id="btn-${day}" onclick="toggleSelectMode('${day}')">🔀 优化顺序</button>
-                </div>
-                ${groups[day].map(p => `
-                    <div class="poi-card" id="card-${p.id}" onclick="handleCardClick('${p.id}', '${day}')">
-                        <div class="poi-num" style="background:${color}">${p.order}</div>
-                        <div class="poi-name">${p.name}</div>
-                    </div>
-                `).join('')}
-            </div>`;
+        groups[day].sort((a,b) => a.order - b.order);
+        return `<div class="day-section" id="section-${day}">
+            <div class="day-header"><b>${day}</b><button class="optimize-btn" id="btn-${day}" onclick="toggleSelectMode('${day}')">点选优化</button></div>
+            ${groups[day].map(p => `<div class="poi-card" id="card-${p.id}" onclick="handleCardClick('${p.id}', '${day}')"><div class="poi-num">${p.order}</div><div class="poi-name">${p.name}</div></div>`).join('')}
+        </div>`;
     }).join('');
 }
 
-// 点选交互逻辑
 function toggleSelectMode(day) {
     if (isSelecting) { resetSelectMode(); return; }
-    isSelecting = true;
-    selectionType = 'start';
-    showToast("请点选列表中的【起点】卡片", false);
-    document.getElementById(`btn-${day}`).innerText = "❌ 取消";
-    document.getElementById(`btn-${day}`).classList.add('active');
-    document.querySelectorAll(`.day-section:not(#section-${day})`).forEach(el => el.style.opacity = '0.3');
+    isSelecting = true; selectionType = 'start'; showToast("点击【起点】卡片", false);
+    document.getElementById(`btn-${day}`).innerText = "❌取消";
 }
 
 function handleCardClick(id, day) {
-    if (!isSelecting) {
-        const p = allPlaces.find(x => x.id === id);
-        map.flyTo([p.lat, p.lng], 15);
-        return;
-    }
+    if (!isSelecting) { const p = allPlaces.find(x => x.id === id); map.flyTo([p.lat, p.lng], 16); return; }
     if (selectionType === 'start') {
         startPoint = allPlaces.find(x => x.id === id);
         document.getElementById(`card-${id}`).classList.add('picked-start');
-        selectionType = 'end';
-        showToast("已定起点，请点选【终点】卡片", false);
-    } else if (selectionType === 'end') {
+        selectionType = 'end'; showToast("再点击一次【终点】（支持同点闭环）", false);
+    } else {
         endPoint = allPlaces.find(x => x.id === id);
-        if (endPoint.id === startPoint.id) { alert("起终点不能一样哦"); return; }
         document.getElementById(`card-${id}`).classList.add('picked-end');
-        isSelecting = false;
-        runOptimization(day);
+        isSelecting = false; runOptimization(day);
     }
 }
 
 async function runOptimization(day) {
     const dayPlaces = allPlaces.filter(p => p.day === day);
-    showToast("正在规划最优路径...");
-    let unvisited = dayPlaces.filter(p => p.id !== startPoint.id && p.id !== endPoint.id);
-    let current = startPoint;
     let optimized = [startPoint];
+    let unvisited = dayPlaces.filter(p => p.id !== startPoint.id && (startPoint.id === endPoint.id ? true : p.id !== endPoint.id));
+    
+    // 如果起终点不同，unvisited 已经剔除了两者；如果相同，只剔除了一个。符合逻辑。
+    let current = startPoint;
     while (unvisited.length > 0) {
         let nearestIdx = 0, minDist = Infinity;
         unvisited.forEach((p, i) => {
@@ -210,26 +141,20 @@ async function runOptimization(day) {
         current = unvisited.splice(nearestIdx, 1)[0];
         optimized.push(current);
     }
-    optimized.push(endPoint);
+    if (startPoint.id !== endPoint.id) optimized.push(endPoint);
 
-    if (confirm(`规划成功：\n${optimized.map((p,i) => (i+1)+'.'+p.name).join(' → ')}\n\n确定同步回 Notion 吗？`)) {
-        showToast("正在更新 Notion...", false);
+    if (confirm(`规划路径：${optimized.map(p=>p.name).join(' -> ')}\n确定同步吗？`)) {
+        showToast("同步中...", false);
         for (let i = 0; i < optimized.length; i++) {
-            await notionReq(`/pages/${optimized[i].id}`, 'PATCH', {
-                properties: { '当日顺序': { number: i + 1 } }
-            });
+            await notionReq(`/pages/${optimized[i].id}`, 'PATCH', { properties: { '当日顺序': { number: i + 1 } } });
         }
-        showToast("✅ 同步成功！", true);
-        resetSelectMode();
-        loadData();
-    } else { resetSelectMode(); }
+        showToast("✅ 完成", true); resetSelectMode(); loadData();
+    } else resetSelectMode();
 }
 
 function resetSelectMode() {
     isSelecting = false; startPoint = null; endPoint = null;
-    document.querySelectorAll('.optimize-btn').forEach(b => b.innerText = "🔀 优化顺序");
-    document.querySelectorAll('.optimize-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.day-section').forEach(el => el.style.opacity = '1');
+    document.querySelectorAll('.optimize-btn').forEach(b => b.innerText = "点选优化");
     document.querySelectorAll('.poi-card').forEach(el => el.className = 'poi-card');
     showToast("", true);
 }
@@ -238,38 +163,19 @@ function renderMap() {
     polylines.forEach(p => map.removeLayer(p));
     Object.values(markers).forEach(m => map.removeLayer(m));
     polylines = []; markers = {};
-    const groups = groupByDay(allPlaces);
-    const bounds = [];
+    const groups = {};
+    allPlaces.forEach(p => { if(!groups[p.day]) groups[p.day]=[]; groups[p.day].push(p); });
     Object.entries(groups).forEach(([day, places]) => {
-        const color = DAY_COLORS[day] || '#999';
-        const coords = [];
-        places.forEach(p => {
-            coords.push([p.lat, p.lng]);
-            bounds.push([p.lat, p.lng]);
-            const icon = L.divIcon({
-                className: '',
-                html: `<div style="width:24px;height:24px;border-radius:50%;background:${color};border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:bold;box-shadow:0 2px 5px rgba(0,0,0,0.2)">${p.order}</div>`
-            });
-            markers[p.id] = L.marker([p.lat, p.lng], {icon}).addTo(map).bindPopup(p.name);
+        places.sort((a,b) => a.order - b.order);
+        const coords = places.map(p => {
+            const icon = L.divIcon({ className: '', html: `<div class="poi-num" style="background:${DAY_COLORS[day]||'#999'};border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,0.3)">${p.order}</div>` });
+            markers[p.id] = L.marker([p.lat, p.lng], {icon}).addTo(map);
+            return [p.lat, p.lng];
         });
-        if(coords.length > 1) polylines.push(L.polyline(coords, {color, weight:4, opacity:0.7}).addTo(map));
+        if(coords.length > 1) polylines.push(L.polyline(coords, {color:DAY_COLORS[day]||'#999', weight:4}).addTo(map));
     });
-    if(bounds.length > 0) map.fitBounds(bounds, {padding:[50,50]});
 }
-
-function groupByDay(places) {
-    const g = {};
-    places.forEach(p => { if(!g[p.day]) g[p.day]=[]; g[p.day].push(p); });
-    Object.values(g).forEach(arr => arr.sort((a,b) => a.order - b.order));
-    return g;
-}
-
-function showToast(m, h){ 
-    const t=document.getElementById('toast'); 
-    if(!m) { t.style.display='none'; return; }
-    t.style.display='block'; t.textContent=m; 
-    if(h) setTimeout(()=>t.style.display='none',2500); 
-}
+function showToast(m, h){ const t=document.getElementById('toast'); if(!m){t.style.display='none';return;} t.style.display='block'; t.textContent=m; if(h) setTimeout(()=>t.style.display='none',2000); }
 </script>
 </body>
 </html>
