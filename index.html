@@ -502,7 +502,7 @@ async function calcRoute() {
   document.getElementById('route-save-btn').style.display = 'none';
 
   try {
-    const profile = mode === 'walking' ? 'foot' : 'driving';
+    const profile = mode === 'walking' ? 'foot' : mode === 'transit' ? 'foot' : 'driving';
     const res = await fetch(`https://router.project-osrm.org/route/v1/${profile}/${from.lng},${from.lat};${to.lng},${to.lat}?overview=false`);
     const data = await res.json();
     if (data.code !== 'Ok') throw new Error('计算失败');
